@@ -81,7 +81,9 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
     page_users_request = RunReportRequest(
                 property='properties/'+property_id,
                 dimensions=[Dimension(name="pagePath")],
-                metrics=[Metric(name="activeUsers")],
+                metrics=[Metric(name="activeUsers"),
+                     Metric(name="engagedSessions"),
+                     Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
                 date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
     )
@@ -89,7 +91,9 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
     landing_page_users_request = RunReportRequest(
                 property='properties/'+property_id,
                 dimensions=[Dimension(name="landingPage")],
-                metrics=[Metric(name="activeUsers")],
+                metrics=[Metric(name="activeUsers"),
+                     Metric(name="engagedSessions"),
+                     Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
                 date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
     )
@@ -97,7 +101,9 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
     countries_users_request = RunReportRequest(
                 property='properties/'+property_id,
                 dimensions=[Dimension(name="country")],
-                metrics=[Metric(name="activeUsers")],
+                metrics=[Metric(name="activeUsers"),
+                     Metric(name="engagedSessions"),
+                     Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
                 date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
     )
