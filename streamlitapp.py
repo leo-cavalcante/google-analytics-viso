@@ -190,7 +190,7 @@ st.dataframe(countries_table[0:top_results],
         "country": st.column_config.TextColumn("Pays"),
         "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
         "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
-        "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+        "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
         },)
 
 # with col2:
@@ -201,7 +201,7 @@ st.dataframe(landing_table[0:top_results],
         "landingPage": st.column_config.TextColumn("landingPage"),
         "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
         "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
-        "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+        "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
         },)
         
 # with col3:
@@ -212,5 +212,5 @@ st.dataframe(page_users_table[0:top_results],
         "pagePath": st.column_config.TextColumn("Adresse Page"),
         "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
         "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
-        "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+        "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
         },)
