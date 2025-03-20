@@ -21,7 +21,7 @@ client = BetaAnalyticsDataClient()
 
 ## STREAMLIT APP - MAIN STRUCTURE
 st.set_page_config(layout="wide")   # Use the full page instead of a narrow central column
-st.title("VISO || TABLEAU DE BORD || MARKETING DIGITAL")
+st.title("VISO || MARKETING DIGITAL || Tableau de Bord")
 
 # FILTERS SIDEBAR -- PART 1
 st.sidebar.title("FILTRES")
@@ -107,8 +107,8 @@ year_month_table = output_df.groupby(by='yearMonth').agg(Sessions=('Sessions', '
                                                       screenPageViews=('screenPageViews', 'sum'),
                                                       SessionsDuration=('SessionsDuration','sum'))
 
-year_month_table['bounceRate'] = year_month_table['bounces'] / year_month_table['Sessions']
-year_month_table['bounceRate'] = year_month_table['bounceRate'].map('{:.3f}'.format) #.values.astype('str')
+year_month_table['bounceRate'] = (year_month_table['bounces'] / year_month_table['Sessions'])*100
+year_month_table['bounceRate'] = year_month_table['bounceRate'].map('{:.0f}%'.format) #.values.astype('str')
 year_month_table['avgScreenViews'] = year_month_table['screenPageViews'] / year_month_table['Sessions']
 year_month_table['avgScreenViews'] = year_month_table['avgScreenViews'].map('{:.1f}'.format) #.values.astype('str')
 year_month_table['avgSessionDuration'] = year_month_table['SessionsDuration'] / year_month_table['Sessions']
@@ -117,15 +117,20 @@ year_month_table.drop(columns=['screenPageViews','SessionsDuration'], inplace=Tr
 year_month_table.reset_index(inplace=True)
 # st.write(year_month_table)
 
-st.header(f'\nActive, New & Bounced Users')
+st.header(f'\nUtilisateurs : Actifs, Nouveaux & Bounced')
 base = alt.Chart(year_month_table).encode(x='yearMonth')
-bar_active = base.mark_bar(color='blue', xOffset=-12, width=20).encode(y='activeUsers')
-bar_new = base.mark_bar(color='green', opacity=1, xOffset=12, width=20).encode(y='newUsers')
-line = base.mark_line(color='red',dx=5).encode(alt.Y2('bounceRate'))
-text_active = bar_active.mark_text(align='right',baseline='top',dx=2, color='white').encode(text='activeUsers')
-text_new = bar_new.mark_text(align='left',baseline='top',dx=2, color='white').encode(text='newUsers')
+
+bar_active = base.mark_bar(color='blue', xOffset=-20, width=20).encode(y='activeUsers')
+text_active = bar_active.mark_text(align='center', xOffset=-20, baseline='top', dx=1, color='white').encode(text='activeUsers')
+
+bar_new = base.mark_bar(color='green', opacity=1, xOffset=0, width=20).encode(y='newUsers')
+text_new = bar_new.mark_text(align='center', baseline='top', dx=1, color='white').encode(text='newUsers')
+
+bar_bounce = base.mark_bar(color='red', opacity=0.75, xOffset=20, width=20).encode(y='bounces').encode(text='bounceRate')
+text_bounce = bar_bounce.mark_text(align='center', xOffset=20, baseline='top', dx=1, color='white').encode(text='bounceRate')
+# line = base.mark_line(color='red',dx=5).encode(alt.Y2('bounceRate'))
 alt.Color(value='lightgray')
-bar_users = st.altair_chart(line + bar_active + text_active + bar_new + text_new,
+bar_users = st.altair_chart(bar_bounce + text_bounce + bar_active + text_active + bar_new + text_new,
                             use_container_width=None, theme="streamlit", key=None, on_select="ignore", selection_mode=None)
 st.divider()
 
@@ -155,7 +160,8 @@ st.dataframe(data=year_month_table, height=None, hide_index=True, on_select="rer
 
 st.divider()
 
-st.header(f"\nRépartition par Canal d'Acquisition")
+## GRAPHS 4, 5
+st.header(f'\nAcquisition par Canal')
 channel_prep = output_df.copy()
 channel_prep = channel_prep.groupby(['yearMonth', 'firstUserDefaultChannelGroup']).agg(engagedSessions=('engagedSessions', 'sum'),
                                                                                             #   Sessions=('Sessions', 'sum'), bounces=('bounces','sum'),
@@ -181,7 +187,7 @@ st.divider()
 
 landing_table, page_users_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client)
 
-## GRAPH 4, 5, 6
+## GRAPHS 6, 7, 8
 # with col1:
 st.header(f'\nTop {str(top_results)} Pays')
 countries_table.index += 1
