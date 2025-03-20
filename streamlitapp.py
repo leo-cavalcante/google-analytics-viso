@@ -21,15 +21,13 @@ client = BetaAnalyticsDataClient()
 
 ## STREAMLIT APP - MAIN STRUCTURE
 st.set_page_config(layout="wide")   # Use the full page instead of a narrow central column
-st.title("MK 9 - Audience Web")
-
-st.divider()
+st.title("VISO || TABLEAU DE BORD || MARKETING DIGITAL")
 
 # FILTERS SIDEBAR -- PART 1
 st.sidebar.title("FILTRES")
 start_date_input = st.sidebar.date_input("Date de Début", value=date(date.today().year-1, date.today().month, 1),
                                          min_value="2016-01-01", max_value=date(date.today().year, date.today().month, date.today().day-1))
-end_date_input = st.sidebar.date_input("Date de Fin", value="today", min_value=start_date_input,
+end_date_input = st.sidebar.date_input("Date de Fin", value=date(date.today().year, date.today().month, date.today().day-1), min_value=start_date_input,
                                        max_value=date(date.today().year, date.today().month, date.today().day-1))
 no_days = end_date_input - start_date_input
 
@@ -78,9 +76,6 @@ st.sidebar.button("Download Excel Output", on_click=export_to_excel(output_df))
 
 # Creating new & deleting avg columns on dataframe
 output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y%m')
-# st.write(type(output_df['yearMonth']))
-# output_df['yearMonth'] = output_df['yearMonth'].strftime('%Y-%m')
-# output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth']).strftime("%Y%m")
 output_df['bounces'] = output_df['Sessions'] - output_df['engagedSessions']
 output_df['returningUsers'] = output_df['activeUsers'] - output_df['newUsers']
 output_df['SessionsDuration'] = output_df['averageSessionDuration'] * output_df['engagedSessions']
@@ -124,11 +119,11 @@ year_month_table.reset_index(inplace=True)
 
 st.header(f'\nActive, New & Bounced Users')
 base = alt.Chart(year_month_table).encode(x='yearMonth')
-bar_active = base.mark_bar(color='blue', xOffset=-12, width=20).encode(y='sum(activeUsers)')
-bar_new = base.mark_bar(color='green', opacity=1, xOffset=12, width=20).encode(y='sum(newUsers)')
-line = base.mark_line(color='red',dx=5).encode(alt.Y2('sum(bounceRate)'))
-text_active = bar_active.mark_text(align='right',baseline='top',dx=2, color='white').encode(text='sum(activeUsers)')
-text_new = bar_new.mark_text(align='left',baseline='top',dx=2, color='white').encode(text='sum(newUsers)')
+bar_active = base.mark_bar(color='blue', xOffset=-12, width=20).encode(y='activeUsers')
+bar_new = base.mark_bar(color='green', opacity=1, xOffset=12, width=20).encode(y='newUsers')
+line = base.mark_line(color='red',dx=5).encode(alt.Y2('bounceRate'))
+text_active = bar_active.mark_text(align='right',baseline='top',dx=2, color='white').encode(text='activeUsers')
+text_new = bar_new.mark_text(align='left',baseline='top',dx=2, color='white').encode(text='newUsers')
 alt.Color(value='lightgray')
 bar_users = st.altair_chart(line + bar_active + text_active + bar_new + text_new,
                             use_container_width=None, theme="streamlit", key=None, on_select="ignore", selection_mode=None)
@@ -140,18 +135,18 @@ year_month_table['engagedSessionsRate'] = (year_month_table['engagedSessions'] /
 year_month_table['newUsersRate'] = (year_month_table['newUsers'] / year_month_table['activeUsers']).map('{:.3f}'.format)
 year_month_table['returningUsersRate'] = (year_month_table['returningUsers'] / year_month_table['activeUsers']).map('{:.3f}'.format)
 
-
-st.header(f'\nTable de Données Principale')
+st.header(f'\nPrincipaux KPIs de Performance')
 year_month_table.sort_values('yearMonth', ascending=False, inplace=True)
 year_month_table.drop(columns=['engagedSessions','returningUsers','newUsers','bounces'], inplace=True)
-st.dataframe(data=year_month_table, height=None, hide_index=True, column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
+st.dataframe(data=year_month_table, height=None, hide_index=True, on_select="rerun",
+             column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
              column_config={
     "yearMonth": st.column_config.DateColumn("Année - Mois", format="YYYY - MMM"),
     "Sessions": st.column_config.NumberColumn("Sessions", format="localized", min_value=0),
     "engagedSessionsRate": st.column_config.ProgressColumn("% Sessions Engagées",format="percent",min_value=0,max_value=1),
     # "bounces": st.column_config.NumberColumn("Bounces",format="localized",min_value=0),
     "bounceRate": st.column_config.ProgressColumn("% Bounce",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1),
-    "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=1),
+    "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
     "returningUsersRate": st.column_config.ProgressColumn("% de Retour",format="percent",min_value=0,max_value=1),
     "newUsersRate": st.column_config.ProgressColumn("% de Nouveaux",format="percent",min_value=0,max_value=1),
     "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0),
@@ -160,24 +155,62 @@ st.dataframe(data=year_month_table, height=None, hide_index=True, column_order=[
 
 st.divider()
 
+st.header(f"\nRépartition par Canal d'Acquisition")
+channel_prep = output_df.copy()
+channel_prep = channel_prep.groupby(['yearMonth', 'firstUserDefaultChannelGroup']).agg(engagedSessions=('engagedSessions', 'sum'),
+                                                                                            #   Sessions=('Sessions', 'sum'), bounces=('bounces','sum'),
+                                                                                            activeUsers=('activeUsers','sum'))
+                                                                                            #   newUsers=('newUsers','sum'), returningUsers=('returningUsers', 'sum'),
+                                                                                            #   screenPageViews=('screenPageViews', 'sum'),
+                                                                                            #   SessionsDuration=('SessionsDuration','sum'))
+# st.write(channel_prep)
+channel_prep.reset_index(names=['yearMonth', 'firstUserDefaultChannelGroup'], inplace=True)
+channel_prep = channel_prep.rename(columns={'yearMonth':'Année - Mois','firstUserDefaultChannelGroup':'Canal'})
+
+col1, col2 = st.columns(2)
+with col1:
+    st.bar_chart(channel_prep, x='Année - Mois', y='activeUsers', x_label='Users Actifs', stack="normalize", color='Canal', horizontal=True, use_container_width=True)
+with col2:
+    st.bar_chart(channel_prep, x='Année - Mois', y='engagedSessions', x_label='Sessions Engagées', stack="normalize", color='Canal', horizontal=True, use_container_width=True)
+ 
+
+st.divider()
+
 ## DISPLAY - MAIN STRUCTURE
-col1, col2, col3 = st.columns(3)
+# col1, col2, col3 = st.columns(3)
 
 landing_table, page_users_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client)
 
-## GRAPH 4
-with col1:
-    st.header(f'\nTop {str(top_results)} Countries')
-    countries_table.index += 1
-    st.dataframe(countries_table[0:top_results])#, hide_index=True)
+## GRAPH 4, 5, 6
+# with col1:
+st.header(f'\nTop {str(top_results)} Pays')
+countries_table.index += 1
+st.dataframe(countries_table[0:top_results],
+            column_config={
+        "country": st.column_config.TextColumn("Pays"),
+        "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
+        "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
+        "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+        },)
 
-with col2:
-    st.header(f'\nTop {str(top_results)} Landing Pages')
-    landing_table.index += 1
-    st.table(landing_table[0:top_results])
+# with col2:
+st.header(f'\nTop {str(top_results)} Landing Pages')
+landing_table.index += 1
+st.dataframe(landing_table[0:top_results],
+            column_config={
+        "landingPage": st.column_config.TextColumn("landingPage"),
+        "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
+        "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
+        "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+        },)
         
-with col3:
-    st.header(f'\nTop {str(top_results)} Visited Pages')
-    page_users_table.index += 1
-    st.table(page_users_table[0:top_results])
-    
+# with col3:
+st.header(f'\nTop {str(top_results)} Pages Visitées')
+page_users_table.index += 1
+st.dataframe(page_users_table[0:top_results],
+            column_config={
+        "pagePath": st.column_config.TextColumn("Adresse Page"),
+        "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
+        "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
+        "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+        },)
