@@ -56,39 +56,35 @@ def monthly_traffic_chart(output_df):
                                         values=['activeUsers'], 
                                         aggfunc = 'sum',
                                         fill_value=0).droplevel(0, axis=1)
-    # sns.set_theme()
-    # monhtly_users_pivot.plot.bar(y = ['(none)', 'organic', 'referral', '(not set)'], stacked = True,
-    #                             colormap = 'Dark2',
-    #                             figsize=(7,5), title = 'Active Users by Month')
-    # plt.legend(title = 'User Medium', bbox_to_anchor = (1.05, 0.5))
-    # plt.title('Active Users by Month', fontsize = 15)
     return monthly_users_pivot
 
 def traffic_report(end_date_input, start_date_input, property_id, client):
-    daily_traffic_request = RunReportRequest(
-        property='properties/'+property_id,
-        dimensions=[Dimension(name="date"), 
-                    Dimension(name="sessionMedium")],
-        metrics=[Metric(name="activeUsers")],
-        order_bys = [OrderBy(dimension = {'dimension_name': 'date'}),
-                    OrderBy(dimension = {'dimension_name': 'sessionMedium'})],
-        date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
-    )
+    # daily_traffic_request = RunReportRequest(
+    #     property='properties/'+property_id,
+    #     dimensions=[Dimension(name="date"), 
+    #                 Dimension(name="sessionMedium")],
+    #     metrics=[Metric(name="activeUsers")],
+    #     order_bys = [OrderBy(dimension = {'dimension_name': 'date'}),
+    #                 OrderBy(dimension = {'dimension_name': 'sessionMedium'})],
+    #     date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
+    # )
 
-    page_users_request = RunReportRequest(
+    pages_request = RunReportRequest(
                 property='properties/'+property_id,
                 dimensions=[Dimension(name="pagePath")],
                 metrics=[Metric(name="activeUsers"),
+                    #  Metric(name="Sessions"),
                      Metric(name="engagedSessions"),
                      Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
                 date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
     )
         
-    landing_page_users_request = RunReportRequest(
+    landing_pages_request = RunReportRequest(
                 property='properties/'+property_id,
                 dimensions=[Dimension(name="landingPage")],
                 metrics=[Metric(name="activeUsers"),
+                    #  Metric(name="Sessions"),
                      Metric(name="engagedSessions"),
                      Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
@@ -99,54 +95,66 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
                 property='properties/'+property_id,
                 dimensions=[Dimension(name="country")],
                 metrics=[Metric(name="activeUsers"),
+                    #  Metric(name="Sessions"),
                      Metric(name="engagedSessions"),
                      Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
                 date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
     )
-
-    daily_traffic = format_report(client, daily_traffic_request).reset_index()
-    active_users_pivot = pd.pivot_table(daily_traffic, 
-                                     columns=['sessionMedium'], 
-                                     index=['date'], 
-                                     values=['activeUsers'], 
-                                     aggfunc = 'sum',
-                                     fill_value=0).droplevel(0, axis=1)
-    active_users_pivot.index = active_users_pivot.index.str.slice(start=4)
-    
-    # Produce pie and line charts
-    fig, (axs1, axs2) = plt.subplots(1,2, figsize = (14, 4), gridspec_kw={'width_ratios': [1, 2]})
-    pie_data = daily_traffic.groupby(by = ['sessionMedium']).sum().sort_values(by = ['activeUsers'], ascending = False)
-
-    pie_data.plot.pie(ax = axs1,
-                      colormap = 'Dark2',
-                      y = 'activeUsers',
-                      title = 'Active Users by Medium',
-                      legend = False, 
-                      label = False,
-                      startangle = 0, 
-                      autopct = lambda p:f'{p:.0f}%').set_ylabel('')
-    
-    active_users_pivot.plot.line(ax = axs2, 
-                                 colormap = 'Dark2',
-                                 y = pie_data.index, 
-                                 title = 'Active Users by Day')
-
-    axs2.legend(title = 'User Medium', bbox_to_anchor = (1.05, 0.6))
-
-    plt.show();
     
     # Produce Top pages output tables
-    landing_table = format_report(client, landing_page_users_request)
-    landing_table['activeUsers'] = landing_table['activeUsers'].astype('int') 
-    
-    page_users_table = format_report(client, page_users_request)
-    page_users_table['activeUsers'] = page_users_table['activeUsers'].astype('int') 
-    
     countries_table = format_report(client, countries_users_request)
     countries_table['activeUsers'] = countries_table['activeUsers'].astype('int') 
+    countries_table['engagedSessions'] = countries_table['engagedSessions'].astype('int')
+    # countries_table['Sessions'] = countries_table['Sessions'].astype('int')
+    countries_table['averageSessionDuration'] = countries_table['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
+
+    landing_table = format_report(client, landing_pages_request)
+    landing_table['activeUsers'] = landing_table['activeUsers'].astype('int') 
+    landing_table['engagedSessions'] = landing_table['engagedSessions'].astype('int')
+    # landing_table['Sessions'] = landing_table['Sessions'].astype('int')
+    landing_table['averageSessionDuration'] = landing_table['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
+    # landing_table['SessionsDuration'] = landing_table['Sessions'] * landing_table['averageSessionDuration'] 
     
-    return landing_table, page_users_table, countries_table
+    pages_table = format_report(client, pages_request)
+    pages_table['activeUsers'] = pages_table['activeUsers'].astype('int') 
+    pages_table['engagedSessions'] = pages_table['engagedSessions'].astype('int') 
+    # pages_table['Sessions'] = pages_table['Sessions'].astype('int')
+    pages_table['averageSessionDuration'] = pages_table['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')    
+
+    # daily_traffic = format_report(client, daily_traffic_request).reset_index()
+    # active_users_pivot = pd.pivot_table(daily_traffic, 
+    #                                  columns=['sessionMedium'], 
+    #                                  index=['date'], 
+    #                                  values=['activeUsers'], 
+    #                                  aggfunc = 'sum',
+    #                                  fill_value=0).droplevel(0, axis=1)
+    # active_users_pivot.index = active_users_pivot.index.str.slice(start=4)
+    
+    # Produce pie and line charts
+    # fig, (axs1, axs2) = plt.subplots(1,2, figsize = (14, 4), gridspec_kw={'width_ratios': [1, 2]})
+    # pie_data = daily_traffic.groupby(by = ['sessionMedium']).sum().sort_values(by = ['activeUsers'], ascending = False)
+
+    # pie_data.plot.pie(ax = axs1,
+    #                   colormap = 'Dark2',
+    #                   y = 'activeUsers',
+    #                   title = 'Active Users by Medium',
+    #                   legend = False, 
+    #                   label = False,
+    #                   startangle = 0, 
+    #                   autopct = lambda p:f'{p:.0f}%').set_ylabel('')
+    
+    # active_users_pivot.plot.line(ax = axs2, 
+    #                              colormap = 'Dark2',
+    #                              y = pie_data.index, 
+    #                              title = 'Active Users by Day')
+
+    # axs2.legend(title = 'User Medium', bbox_to_anchor = (1.05, 0.6))
+
+    # plt.show();
+    
+    
+    return landing_table, pages_table, countries_table
 
 def aggregate_yearMonth(output_df):
     output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m %b')
