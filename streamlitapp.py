@@ -6,9 +6,7 @@ import pandas as pd
 import streamlit as st
 import datetime
 from datetime import date
-# from datetime import datetime
 import plotly_express as px
-# from vega_datasets import data
 import matplotlib.pyplot as plt
 from bokeh.plotting import figure
 from google.analytics.data_v1beta.types import Metric
@@ -30,7 +28,7 @@ intro1, intro2 = st.columns([0.25, 0.75])
 with intro1:
     st.image('viso-logo.jpg')
 with intro2:
-    st.header("MARKETING Digital || Tableau de Bord")
+    st.header("Tableau de Bord | Marketing Digital")
 
 # FILTERS SIDEBAR -- PART 1
 st.sidebar.header("Filtres")
@@ -102,36 +100,28 @@ comp_df = df_preparation(output_df=comp_df, country_filter=country_filter, first
 
 tab1, tab2 = st.tabs(["Graphs", "Tables"])
 with tab1:
-    
     ## GRAPH 1 -- FUNNEL MARKETING
     # Aggregating absolute values on dimensions of interest
     st.subheader(f'\nFunnel Marketing Digital')
-    funnel_chart_prep = output_df.copy()
-    funnel_chart_prep = funnel_chart_prep.drop(columns=['averageSessionDuration', 'SessionsDuration'])
-    funnel_chart_prep = funnel_chart_prep[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers']].sum()#agg('sum')
-    funnel_chart_prep = funnel_chart_prep.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Utilisateurs Actifs',
-                                                        'engagedSessions':'Sessions Engagées', 'newUsers':'Utilisateurs Nouveaux', 'returningUsers':'Utilisateurs Répétifs'})
-    funnel_chart_prep = funnel_chart_prep.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
-    fig = px.funnel(funnel_chart_prep, x='Nombre', y='Étape')
+    funnel_chart = build_funnel(output_df)
+    fig = px.funnel(funnel_chart, x='Nombre', y='Étape')
     st.plotly_chart(fig)
 
     st.divider()
 
     ## GRAPH 2
     st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounces')
-    year_month_table = vs_LY(output_df=output_df, comp_df=comp_df)
-    # st.write(year_month_table)
-    base = alt.Chart(year_month_table).encode(
-        x=alt.X('yearMonth:N', axis=alt.Axis(title='', format="YYYY MMM", formatType="YYYY MMM")),
-        y=alt.Y('Sessions:Q', axis=alt.Axis(title=''))
-        ) #.interactive() #, y2='sum(bounces)/count():Q')
+    year_month = build_year_month(output_df=output_df, comp_df=comp_df)
+    # st.write(year_month)
+    
+    base = alt.Chart(year_month).encode(
+        x=alt.X('yearMonth:N', axis=alt.Axis(labelAngle=-0, title='', format="time", formatType="YYYY MMM"), sort='descending'), #labelAngle=-45,
+        y=alt.Y('Sessions:Q', axis=alt.Axis(title='')))
 
     bar_active = base.mark_bar(color='blue', xOffset=-11, width=20).encode(y='activeUsers:Q')
     text_active = bar_active.mark_text(align='center', xOffset=-11, baseline='top', dx=0, color='white', size=10).encode(text='activeUsers:Q',
-                x=alt.X('yearMonth:N', axis=alt.Axis(title='', format="YYYY MMM", formatType="YYYY MMM")),
-                y=alt.Y('activeUsers:Q', stack='zero'),
-                # y2=alt.Y2('bounceRate:Q', stack='zero'),
-                )
+                x=alt.X('yearMonth:N', axis=alt.Axis(labelAngle=-0, title='', format="time", formatType="YYYY MMM"), sort='descending'), #labelAngle=-45,
+                y=alt.Y('activeUsers:Q', stack='zero'),)
 
     bar_new = base.mark_bar(color='green', opacity=1, xOffset=11, width=20).encode(y='newUsers:Q')
     text_new = bar_new.mark_text(align='center', xOffset=11, baseline='top', dx=0, color='white', size=10).encode(text='newUsers')
@@ -141,84 +131,77 @@ with tab1:
 
     alt.Color(value='lightgray')
     line_bounce = base.mark_line(color='#f93d48',dx=2).encode(y=alt.Y('bounces'), text='bounceRate_txt:N')  #.encode(y='sum(bounces)')
-    # bar_bounce = base.mark_bar(color='red', opacity=0.75, xOffset=17, width=17).encode(y='bounces').encode(text='bounceRate_txt')
     text_bounce = line_bounce.mark_text(align='center', xOffset=0, baseline='bottom', dx=15, color='#fa8072', opacity=1, size=13).encode(text='bounceRate_txt')
 
     bar_users = st.altair_chart(bar_sessions + text_sessions + bar_new + text_new + bar_active + text_active + line_bounce + text_bounce,
-                                # x_label='', y_label='',
-                                # interactive=True,
                                 theme="streamlit", use_container_width=True) # on_select="rerun")
     st.divider()
     
     ## GRAPHS 3, 4
     st.subheader(f'\nAcquisition par Canal')
-    channel_prep = output_df.copy()
-    channel_prep = channel_prep.groupby(['yearMonth', 'firstUserDefaultChannelGroup']).agg(engagedSessions=('engagedSessions', 'sum'),
-                                                                                                activeUsers=('activeUsers','sum'))
-    # st.write(channel_prep)
-    channel_prep.reset_index(names=['yearMonth', 'firstUserDefaultChannelGroup'], inplace=True)
-    channel_prep = channel_prep.rename(columns={'yearMonth':'Année - Mois','firstUserDefaultChannelGroup':' ', 'activeUsers':'Utilisateurs Actifs', 'engagedSessions':'Sessions Engagées'})
-    channel_prep = channel_prep.sort_values('Année - Mois', ascending=False)
+    channel = build_channel(output_df)
     
-    # col1, col2 = st.columns(2)
-    # with col1:
     st.markdown(f'\nUtilisateurs Actifs')
-    st.bar_chart(channel_prep, x='Année - Mois', x_label='', y='Utilisateurs Actifs', y_label='', stack="normalize", color=' ', horizontal=True, use_container_width=True) #, x_label='Users Actifs'
-    # with col2:
-    st.markdown(f'\nSessions Engagées')
-    st.bar_chart(channel_prep, x='Année - Mois', x_label='', y='Sessions Engagées', y_label='', stack="normalize", color=' ', horizontal=True, use_container_width=True) #, x_label='Sessions Engagées'
+    base_c = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
+                                                       y=alt.Y('yearMonth:N', title='', sort='descending'), #, type='temporal'
+                                                       tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N']
+                                                    )
+    chart_c = base_c.mark_bar().encode(color="Channel")
     
+    c_text = base_c.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
+                ).encode(text=alt.Text('Label:N'))
+    
+    c = st.altair_chart(chart_c + c_text, use_container_width=True)
 
+
+    st.markdown(f'\nSessions Engagées')
+
+    base_d = alt.Chart(channel).mark_bar().encode(x=alt.X('engagedSessions:Q', sort='ascending', stack='normalize'),
+                                                            y=alt.Y('yearMonth:N', title='', sort='descending'),
+                                                            tooltip=['engagedSessions_Percent:N','engagedSessions:Q','Channel:N','yearMonth:N']) #, type='temporal'
+    chart_d = base_d.mark_bar().encode(color="Channel")
+    
+    d_text = base_d.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
+                ).encode(text=alt.Text('Label_bis:N'))
+    
+    d = st.altair_chart(chart_d + d_text, use_container_width=True)
+    
 ## GRAPH 5
 with tab2:
     st.subheader(f'\nPrincipaux KPIs de Performance')
-    year_month_table.sort_values('yearMonth', ascending=False, inplace=True)
-    year_month_table.drop(columns=['engagedSessions','returningUsers','newUsers','bounces'], inplace=True)
-    # st.write(year_month_table)
-    # st.dataframe(data=year_month_table.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
-    st.dataframe(data=year_month_table, #.style.applymap(color_background, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate'])
+    # st.dataframe(data=year_month.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
+    st.dataframe(data=year_month, #.style.applymap(color_background, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate'])
                     height=None, hide_index=True,
                     column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
                 column_config={
         "yearMonth": st.column_config.DateColumn("Année - Mois", format="YYYY - MMM", pinned=True),
-        "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(year_month_table['Sessions'])),
+        "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(year_month['Sessions'])),
         "engagedSessionsRate": st.column_config.NumberColumn("% Engagées",format="percent",min_value=0,max_value=1),
-        # "bounces": st.column_config.NumberColumn("Bounces",format="localized",min_value=0),
         "bounceRate": st.column_config.NumberColumn("% Bounce",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
-        "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(year_month_table['activeUsers'])),
+        "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(year_month['activeUsers'])),
         "returningUsersRate": st.column_config.NumberColumn("% Retour",format="percent",min_value=0,max_value=1),
         "newUsersRate": st.column_config.NumberColumn("% Nouveaux",format="percent",min_value=0,max_value=1),
         "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0),
         "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
     })
-
-    # st.divider()
     
     
     ## GRAPH 6
     st.markdown(f"\nComparaison à l'Année Précédente")
-    year_month_table.sort_values('yearMonth', ascending=False, inplace=True)
-
-    # st.dataframe(data=year_month_table.style.applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.style.highlight_max(axis=0,subset=['bounceRate'],color='red').highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
-    # year_month_table.style.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
-    # st.markdown('<style>.col_heading{text-align: center;}</style>', unsafe_allow_html=True)
-    # year_month_table.columns = ['<div class="col_heading">'+col+'</div>' for col in year_month_table.columns] 
+    year_month.sort_values('yearMonth', ascending=False, inplace=True)
     
     cmap = plt.cm.get_cmap('PRGn')
-    st.dataframe(data=year_month_table.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None).applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
+    st.dataframe(data=year_month.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None).applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
                     height=None, hide_index=True,
                     column_order=['yearMonth','Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY'],
                 column_config={
         "yearMonth": st.column_config.DateColumn("Année - Mois", format="YYYY - MMM", pinned=True),
         "Sessions_vs_LY": st.column_config.NumberColumn("Sessions vs LY", format="percent",min_value=0,max_value=1,width="small"),
         "engagedSessions_vs_LY": st.column_config.NumberColumn("Engagées vs LY",format="percent",min_value=0,max_value=1,width="small"),
-        # "bounces": st.column_config.NumberColumn("Bounces",format="localized",min_value=0),
         "bounces_vs_LY": st.column_config.NumberColumn("Bounces vs LY",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
         "activeUsers_vs_LY": st.column_config.NumberColumn("Utilisateurs vs LY",format="percent",min_value=0,max_value=1,width="small"),
         "returningUsers_vs_LY": st.column_config.NumberColumn("Retour vs LY",format="percent",min_value=0,max_value=1,width="small"),
         "newUsers_vs_LY": st.column_config.NumberColumn("Nouveaux vs LY",format="percent",min_value=0,max_value=1,width="small"),
-        # "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0,width="small"),
-        # "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0,width="small"),
     })
 
     st.divider()
@@ -229,8 +212,6 @@ with tab2:
     landing_table, pages_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client, country_filter, firstUserDefaultChannelGroup_filter)
 
     ## GRAPHS 7, 8, 9
-    # with col1:
-    # st.header(f'\nTop {str(top_results)} ...')
     st.subheader(f'\nTop {str(top_results)} Pays')
     countries_table.index += 1
     st.dataframe(countries_table[0:top_results],
