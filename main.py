@@ -251,6 +251,7 @@ def build_channel(output_df):
     channel['engagedSessions_Label'] = channel['engagedSessions'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
     channel['Label_bis'] = channel['engagedSessions_Percent'] + channel['engagedSessions_Label'] #.values.astype('str') + ')'
     channel = channel.rename(columns={'yearMonth':'yearMonth','firstUserDefaultChannelGroup':'Channel', 'activeUsers':'activeUsers', 'engagedSessions':'engagedSessions'})
+    # st.write(channel)
     return channel
 
 def color_background(value):
