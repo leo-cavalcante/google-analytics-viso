@@ -193,7 +193,7 @@ with tab2:
     st.subheader(f'\nPrincipaux KPIs de Performance')
     year_month_table.sort_values('yearMonth', ascending=False, inplace=True)
     year_month_table.drop(columns=['engagedSessions','returningUsers','newUsers','bounces'], inplace=True)
-    st.write(year_month_table)
+    # st.write(year_month_table)
     # st.dataframe(data=year_month_table.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
     st.dataframe(data=year_month_table,
                     height=None, hide_index=True,
