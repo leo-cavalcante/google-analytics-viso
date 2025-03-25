@@ -25,7 +25,12 @@ client = BetaAnalyticsDataClient()
 
 ## STREAMLIT APP - MAIN STRUCTURE
 st.set_page_config(layout="wide")   # Use the full page instead of a narrow central column
-st.header("VISO || Marketing Digital | Tableau de Bord")
+
+intro1, intro2 = st.columns([0.25, 0.75])
+with intro1:
+    st.image('viso-logo.jpg')
+with intro2:
+    st.header("Marketing Digital | Tableau de Bord")
 
 # FILTERS SIDEBAR -- PART 1
 st.sidebar.header("Filtres")
@@ -212,23 +217,27 @@ with tab2:
     
     
     ## GRAPH 6
-    st.subheader(f"\nComparaison à l'Année Précédente")
+    st.markdown(f"\nComparaison à l'Année Précédente")
     year_month_table.sort_values('yearMonth', ascending=False, inplace=True)
 
     # st.dataframe(data=year_month_table.style.applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.style.highlight_max(axis=0,subset=['bounceRate'],color='red').highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
+    # year_month_table.style.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
+    # st.markdown('<style>.col_heading{text-align: center;}</style>', unsafe_allow_html=True)
+    # year_month_table.columns = ['<div class="col_heading">'+col+'</div>' for col in year_month_table.columns] 
+    
     cmap = plt.cm.get_cmap('PRGn')
-    st.dataframe(data=year_month_table.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None).applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']),
+    st.dataframe(data=year_month_table.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None).applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
                     height=None, hide_index=True,
                     column_order=['yearMonth','Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY'],
                 column_config={
         "yearMonth": st.column_config.DateColumn("Année - Mois", format="YYYY - MMM", pinned=True),
         "Sessions_vs_LY": st.column_config.NumberColumn("Sessions vs LY", format="percent",min_value=0,max_value=1,width="small"),
-        "engagedSessions_vs_LY": st.column_config.NumberColumn("Sessions Engagées vs LY",format="percent",min_value=0,max_value=1,width="small"),
+        "engagedSessions_vs_LY": st.column_config.NumberColumn("Engagées vs LY",format="percent",min_value=0,max_value=1,width="small"),
         # "bounces": st.column_config.NumberColumn("Bounces",format="localized",min_value=0),
-        "bounces_vs_LY": st.column_config.NumberColumn("Sessions Bounce vs LY",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
-        "activeUsers_vs_LY": st.column_config.NumberColumn("Utilisateurs Actifs vs LY",format="percent",min_value=0,max_value=1,width="small"),
-        "returningUsers_vs_LY": st.column_config.NumberColumn("Users Retour vs LY",format="percent",min_value=0,max_value=1,width="small"),
-        "newUsers_vs_LY": st.column_config.NumberColumn("Users Nouveaux vs LY",format="percent",min_value=0,max_value=1,width="small"),
+        "bounces_vs_LY": st.column_config.NumberColumn("Bounces vs LY",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
+        "activeUsers_vs_LY": st.column_config.NumberColumn("Utilisateurs vs LY",format="percent",min_value=0,max_value=1,width="small"),
+        "returningUsers_vs_LY": st.column_config.NumberColumn("Retour vs LY",format="percent",min_value=0,max_value=1,width="small"),
+        "newUsers_vs_LY": st.column_config.NumberColumn("Nouveaux vs LY",format="percent",min_value=0,max_value=1,width="small"),
         # "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0,width="small"),
         # "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0,width="small"),
     })
