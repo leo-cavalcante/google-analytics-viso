@@ -192,23 +192,28 @@ def vs_LY(output_df, comp_df):
     
     output_df.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True) #,'SessionsDuration_LY','averageSessionDuration_LY','screenPageViews_LY'
     
-    output_df['engagedSessionsRate'] = (output_df['engagedSessions'] / output_df['Sessions']).map('{:.3f}'.format)
+    output_df['engagedSessionsRate'] = (output_df['engagedSessions'] / output_df['Sessions']).apply(lambda x: round(x, 3))
     # output_df['bounceRate'] = output_df['bounces'] / output_df['Sessions']
-    output_df['newUsersRate'] = (output_df['newUsers'] / output_df['activeUsers']).map('{:.3f}'.format)
-    output_df['returningUsersRate'] = (output_df['returningUsers'] / output_df['activeUsers']).map('{:.3f}'.format)
+    output_df['newUsersRate'] = (output_df['newUsers'] / output_df['activeUsers']).apply(lambda x: round(x, 3))
+    output_df['returningUsersRate'] = (output_df['returningUsers'] / output_df['activeUsers']).apply(lambda x: round(x, 3))
     
     return output_df
 
 def color_background(value):
-    if '%' in str(value):
-        value = float(str(value).strip('%'))
-        value = value/100
+    # if '%' in str(value):
+    #     value = float(str(value).strip('%'))
+    #     value = value/100
     
-    if float(value)<-0.01:
-        return f"background-color: linear-gradient(90deg,#fa8072 {100}%, transparent {50}%);"
-        # st.write(value)
+    if value<-0.50 or value>0.5:
+        return f"color: white"
+        
+    elif value<-0.01:
+        return f"color: darkred"
+        # return f"background-color: linear-gradient(90deg,#fa8072 {100}%, transparent {50}%);"
         # return f"background-color: #fa8072, transparency:{-value*100};"
-    elif float(value)>0.01:
-        return f"background: #green; opacity:{value/100};"
+        
+    elif value>0.01:
+        return f"color: darkgreen"
+        # return f"background: #green; opacity:{value/100};"
     else:
         return f"color: gray"
