@@ -193,7 +193,7 @@ def vs_LY(output_df, comp_df):
     output_df.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True) #,'SessionsDuration_LY','averageSessionDuration_LY','screenPageViews_LY'
     
     output_df['engagedSessionsRate'] = (output_df['engagedSessions'] / output_df['Sessions']).apply(lambda x: round(x, 3))
-    # output_df['bounceRate'] = output_df['bounces'] / output_df['Sessions']
+    output_df['bounceRate'] = (output_df['bounces'] / output_df['Sessions']).apply(lambda x: round(x, 3))
     output_df['newUsersRate'] = (output_df['newUsers'] / output_df['activeUsers']).apply(lambda x: round(x, 3))
     output_df['returningUsersRate'] = (output_df['returningUsers'] / output_df['activeUsers']).apply(lambda x: round(x, 3))
     
