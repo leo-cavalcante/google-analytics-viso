@@ -1,10 +1,10 @@
 import os
+import datetime
 import dateutil
 from main import *
 import altair as alt
 import pandas as pd
 import streamlit as st
-import datetime
 from datetime import date
 import plotly_express as px
 import matplotlib.pyplot as plt
@@ -90,55 +90,26 @@ with tab1:
     st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounces')
     year_month = build_year_month(output_df=output_df, comp_df=comp_df)
     
-    base = alt.Chart(year_month).encode(
-        x=alt.X('yearMonth:N', axis=alt.Axis(labelAngle=-0, title='', format="time", formatType="YYYY MMM"), sort='descending'), #labelAngle=-45,
-        y=alt.Y('Sessions:Q', axis=alt.Axis(title='')))
-
-    bar_active = base.mark_bar(color='blue', xOffset=-14, width=27).encode(y='activeUsers:Q')
-    area_returning = alt.Chart(year_month).mark_area(opacity=0.75).encode(
-                alt.X("yearMonth:N"), alt.Y("returningUsers:Q", scale=alt.Scale(zero=False))#, axis=alt.Axis(title="Petabytes"),
-                ) #.properties(height=600).configure_axis(labelFontSize=16, titleFontSize=18)
-
-    text_active = bar_active.mark_text(align='center', xOffset=-14, baseline='top', dx=0, color='white', size=12).encode(text='activeUsers:Q',
-                x=alt.X('yearMonth:N', axis=alt.Axis(labelAngle=-0, title='', format="time", formatType="YYYY MMM"), sort='descending'), #labelAngle=-45,
-                y=alt.Y('activeUsers:Q', stack='zero'),)
-
-    bar_new = base.mark_bar(color='green', opacity=1, xOffset=14, width=27).encode(y='newUsers:Q')
-    area_new = alt.Chart(year_month).mark_area(opacity=0.75).encode(
-                alt.X("yearMonth:N"), alt.Y("newUsers:Q", scale=alt.Scale(zero=False))#, axis=alt.Axis(title="Petabytes"),
-                ) #.properties(height=600).configure_axis(labelFontSize=16, titleFontSize=18)
-    text_new = bar_new.mark_text(align='center', xOffset=14, baseline='top', dx=0, color='white', size=12).encode(text='newUsers')
-    
-    bar_sessions = base.mark_bar(color='darkblue', opacity=1, xOffset=-14, width=27).encode(y=alt.Y('Sessions:Q', axis=alt.Axis(title='')))
-    text_sessions = bar_sessions.mark_text(align='center', xOffset=-14, baseline='top', dx=0, color='white', size=12).encode(text='Sessions')
-
-    line_bounce = base.mark_line(color='#f93d48',dx=2).encode(y=alt.Y('bounces'), text='bounceRate_txt:N')  #.encode(y='sum(bounces)')
-    text_bounce = line_bounce.mark_text(align='center', xOffset=0, baseline='bottom', dx=15, color='#fa8072', opacity=1, size=12).encode(text='bounceRate_txt')
-    
-    year_month['Sessions Engagées'] = -year_month['engagedSessions']
-    year_month['Bounces'] = -year_month['bounces']
+    year_month['Sessions Engagées'] = year_month['engagedSessions']
+    year_month['Bounces'] = year_month['bounces']
     year_month['Users de Retour'] = year_month['returningUsers']
     year_month['Users Nouveaux'] = year_month['newUsers']
     
-    # area = alt.Chart(st.area_chart(year_month, x='yearMonth', x_label='', y=['Users de Retour','Users Nouveaux'], y_label='', stack=True, color=['#ff0000','#00ff00'], use_container_width=True)).mark_area(opacity=1).encode(x=alt.X('yearMonth:T', axis=alt.Axis(labelAngle=-0, title=''), sort='descending'), y=alt.Y(axis=alt.Axis(title='')))
+    year_month_bis= pd.pivot_table(year_month, values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
+                                   index=['yearMonth'], aggfunc='sum').reset_index()
+    year_month_all = year_month_bis.melt(id_vars='yearMonth', value_vars=['Users Nouveaux','Users de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
+    year_month_all['Type'] = year_month_all['SubType'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Sessions')
+    # st.write(year_month_all)
     
-    bar_users = st.altair_chart(bar_sessions + text_sessions + bar_active + text_active + bar_new + text_new + line_bounce + text_bounce,
-                            theme="streamlit", use_container_width=True) # on_select="rerun")
-    
-    # st.area_chart(data=year_month, x='yearMonth', x_label='', y=['newUsers','returningUsers','Sessions Engagées','Bounces'], y_label=['New Users', 'Returning Users', 'Sessions Engagées', 'Bounces'], stack=True, color=['#ff0000','#0ff000','#00ff00','#0000ff'], use_container_width=True)#, x_label=None, y_label=None, color=None, stack=None, width=None, height=None, use_container_width=True)
-    
-    area_base_users = alt.Chart(st.area_chart(year_month, x='yearMonth', x_label='', y=['Users de Retour','Users Nouveaux'], y_label='', stack=True, color=['#ff0000','#00ff00'], use_container_width=True)).mark_area(opacity=1).encode(x=alt.X('yearMonth:T', axis=alt.Axis(labelAngle=-0, title=''), sort='descending'),
-                                                                                                                                                                                                        y=alt.Y(axis=alt.Axis(title='')))
-    # test1 = area_base_users.mark_area(opacity=0.75).encode(y=alt.Y('yearMonth:N', axis=alt.Axis(title='')))
-    # test1 = alt.Chart(year_month).mark_area(opacity=0.75).encode(y=alt.y('newUsers:T', axis=alt.Axis(title='')))
-    # text_test1 = alt.Chart(year_month).mark_area(opacity=0.75)
-    # text_test1 = area_base_users.encode(x='yearMonth', text=alt.Text('activeUsers:Q'))
-    # text_test2 = text_test1.mark_text(align='center', xOffset=0, baseline='line-top', dx=15, color='black', opacity=1, size=20).encode(text=alt.Text('activeUsers:Q'))
-    # area_users = st.altair_chart(area_base_users, theme="streamlit", use_container_width=True)
-    # st.write(test_base)
-    
-    area_base_sessions = alt.Chart(st.area_chart(year_month, x='yearMonth', x_label='', y=['Sessions Engagées','Bounces'], y_label='', stack=True, color=['#ff0000','#00ff00'], use_container_width=True)).mark_area(opacity=0).encode(x=alt.X('yearMonth:T', axis=alt.Axis(labelAngle=-0, title=''), sort='descending'),
-                                                                                                                                                                                                                  y=alt.Y(axis=alt.Axis(title='')))
+    fig_all = px.area(year_month_all, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
+                      labels={'yearMonth': 'Année - Mois',
+                              'Nombre': 'Nombre',
+                              'Type': 'Utilisateur ou Séance'})
+    fig_all.update_xaxes(visible=True,title=None)
+    fig_all.update_yaxes(visible=True,title=None)#"Utilisateurs ou Sessions")
+    fig_all.update_traces(textposition='top center', textfont=dict(size=12,color='#9C3587',weight="bold"))
+    st.plotly_chart(fig_all, use_container_width=True, theme="streamlit", on_select="rerun")
+
     st.divider()
     
     ## GRAPHS 3, 4
@@ -147,7 +118,7 @@ with tab1:
     
     st.markdown(f'\nUtilisateurs Actifs')
     base_c = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
-                                                       y=alt.Y('yearMonth:N', title='', sort='descending'), #, type='temporal'
+                                                       y=alt.Y('yearMonth:N', axis=alt.Axis(title=None, labelAngle=0), sort='descending'), #, type='temporal'
                                                        tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N']
                                                     )
     chart_c = base_c.mark_bar().encode(color="Channel")
