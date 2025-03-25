@@ -9,6 +9,24 @@ from google.analytics.data_v1beta.types import Dimension
 from google.analytics.data_v1beta.types import RunReportRequest 
 # from google.analytics.data_v1beta import BetaAnalyticsDataClient
 
+def request_ga_data(property_id, start_date_input, end_date_input):
+    return RunReportRequest(
+            property='properties/'+property_id,
+            dimensions=[Dimension(name="yearMonth"), # Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
+                        Dimension(name="country"), # Dimension(name="sessionSourceMedium")], # Dimension(name="sessionMedium"), # Dimension(name="defaultChannelGroup")],       # NOT POSSIBLE TO CALCULATE NEW VISITORS
+                        Dimension(name="firstUserDefaultChannelGroup")],
+            metrics=[Metric(name="activeUsers"),
+                     Metric(name="newUsers"),
+                     Metric(name="Sessions"),
+                     Metric(name="engagedSessions"), #  Metric(name="bounceRate"),
+                     Metric(name="screenPageViews"),                    ## >> screen_view + page_view events
+                     Metric(name="averageSessionDuration")],
+            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
+                        OrderBy(dimension = {'dimension_name': 'country'}),
+                        OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup'})],
+            date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
+        )
+
 #  Format Report - run_report method
 def format_report(client, request):
     response = client.run_report(request)
@@ -244,3 +262,6 @@ def color_background(value):
         
     else:
         return f"color: gray"
+
+def color_rate(value):
+    return f"color: #B0B0B0"
