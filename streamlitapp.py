@@ -77,6 +77,7 @@ def request_ga_data(property_id, start_date_input=start_date_input, end_date_inp
 ## TABLE OUTPUT
 request = request_ga_data(property_id, start_date_input, end_date_input)
 output_df = format_report(client, request)
+output_df[['activeUsers','newUsers','Sessions','engagedSessions','screenPageViews','averageSessionDuration']] = output_df[['activeUsers','newUsers','Sessions','engagedSessions','screenPageViews','averageSessionDuration']].fillna(0)
 # output_df.reset_index(inplace=True)
 
 request_comp = request_ga_data(property_id, start_date_comparison, end_date_comparison)
@@ -112,6 +113,8 @@ with tab1:
     ## GRAPH 2
     st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounces')
     year_month = build_year_month(output_df=output_df, comp_df=comp_df)
+    # st.write(max(output_df[output_df['country']=='Andorra']['Sessions']))
+    st.write(year_month['Sessions'])
     # st.write(year_month)
     
     base = alt.Chart(year_month).encode(
@@ -167,6 +170,7 @@ with tab1:
     d = st.altair_chart(chart_d + d_text, use_container_width=True)
     
 ## GRAPH 5
+    
 with tab2:
     st.subheader(f'\nPrincipaux KPIs de Performance')
     # st.dataframe(data=year_month.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
@@ -175,10 +179,10 @@ with tab2:
                     column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
                 column_config={
         "yearMonth": st.column_config.DateColumn("Année - Mois", format="YYYY - MMM", pinned=True),
-        "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(year_month['Sessions'])),
+        "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(max(year_month['Sessions']),0)), #
         "engagedSessionsRate": st.column_config.NumberColumn("% Engagées",format="percent",min_value=0,max_value=1),
         "bounceRate": st.column_config.NumberColumn("% Bounce",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
-        "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(year_month['activeUsers'])),
+        "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0), #,max_value=max(year_month['activeUsers'])
         "returningUsersRate": st.column_config.NumberColumn("% Retour",format="percent",min_value=0,max_value=1),
         "newUsersRate": st.column_config.NumberColumn("% Nouveaux",format="percent",min_value=0,max_value=1),
         "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0),
