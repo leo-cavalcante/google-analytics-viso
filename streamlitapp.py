@@ -9,7 +9,9 @@ from datetime import date
 import plotly_express as px
 import matplotlib.pyplot as plt
 from bokeh.plotting import figure
+import streamlit.components.v1 as components
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
+# set_page_config()
 
 # GLOBAL VARIABLES
 property_id = "386101877"
@@ -25,10 +27,10 @@ intro1, intro2 = st.columns([0.25, 0.75])
 with intro1:
     st.image('viso-logo.jpg')
 with intro2:
-    st.header("Tableau de Bord | Marketing Digital")
+    st.header("Tableau de Bord | Marketing Digital", divider='rainbow')
 
 # FILTERS SIDEBAR -- PART 1
-st.sidebar.header("Filtres")
+st.sidebar.subheader("Filtres", divider='gray')
 
 one_year = date.today() - dateutil.relativedelta.relativedelta(months=11)
 
@@ -78,72 +80,68 @@ comp_df = df_preparation(output_df=comp_df, country_filter=country_filter, first
 tab1, tab2 = st.tabs(["Graphs", "Tables"])
 with tab1:
     ## GRAPH 1 -- FUNNEL MARKETING
-    st.subheader(f'\nFunnel Marketing Digital')
+    st.header( 'Funnel Marketing Digital',divider='gray')
     funnel_chart = build_funnel(output_df)
-    fig = px.funnel(funnel_chart, x='Nombre', y='Étape')
-    fig.update_layout(font=dict(size=12))
-    st.plotly_chart(fig)
+    fig_funnel = px.funnel(funnel_chart, x='Nombre', y='Étape')
+    fig_funnel.update_layout(font=dict(size=14))
+    fig_funnel.update_yaxes(visible=True,title=None, tickfont=dict(size=14))#"Utilisateurs ou Sessions")
+    st.plotly_chart(fig_funnel)
 
-    st.divider()
 
     ## GRAPH 2
-    st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounces')
+        # components.html("""<div style="text-align: center; font-size: 36px"> Utilisateurs     vs    Sessions </div>""", height=40)
+    st.subheader(f'\nUtilisateurs vs Sessions', divider='gray')
+    minicol1, minicol2 = st.columns(2)
+    with minicol1:
+        components.html("""<div style="text-align: center; color: blue"> Nouveaux vs de Retour </div>""", height=50)
+    with minicol2:
+        components.html("""<div style="text-align: center; color: salmon"> Engagées vs Bounces </div>""", height=50)
+
     year_month = build_year_month(output_df=output_df, comp_df=comp_df)
-    
-    year_month['Sessions Engagées'] = year_month['engagedSessions']
-    year_month['Bounces'] = year_month['bounces']
-    year_month['Users de Retour'] = year_month['returningUsers']
-    year_month['Users Nouveaux'] = year_month['newUsers']
-    
-    year_month_bis= pd.pivot_table(year_month.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
+    year_month_pivot= pd.pivot_table(year_month.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
                                    index=['yearMonth'], aggfunc='sum').reset_index()
-    year_month_all = year_month_bis.melt(id_vars='yearMonth', value_vars=['Users Nouveaux','Users de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
-    year_month_all['Type'] = year_month_all['SubType'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Sessions')
-    # st.write(year_month_all)
+    year_month_pivot = year_month_pivot.melt(id_vars='yearMonth', value_vars=['Users Nouveaux','Users de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
+    year_month_pivot['Type'] = year_month_pivot['SubType'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Sessions')
+    # st.write(year_month_pivot)
     
-    fig_all = px.area(year_month_all, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
+    fig_area = px.area(year_month_pivot, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
                       labels={'yearMonth': 'Année - Mois', 'Nombre': 'Nombre', 'Type': 'Utilisateur ou Séance'},)
-    fig_all.update_layout(legend=dict(bgcolor=None,title=None,yanchor="top",y=1.2,xanchor="left",x=0.01),
+    fig_area.update_layout(legend=dict(bgcolor=None,title=None,yanchor="top",y=1.2,xanchor="left",x=0.01),
                           xaxis=dict(autorange="reversed"),
                           paper_bgcolor=None)
-    fig_all.update_xaxes(visible=True,title=None)
-    fig_all.update_yaxes(visible=True,title=None)#"Utilisateurs ou Sessions")
-    fig_all.update_traces(textposition='top center', textfont=dict(size=12,color='#9C3587',weight="bold"))
-    st.plotly_chart(fig_all, use_container_width=True, theme="streamlit", on_select="rerun")
-
-    st.divider()
+    fig_area.update_xaxes(visible=True,title=None)
+    fig_area.update_yaxes(visible=True,title=None)
+    fig_area.update_traces(textposition='top center', textfont=dict(size=12,color='#9C3587',weight="bold"))
+    st.plotly_chart(fig_area, use_container_width=True, theme="streamlit", on_select="rerun")
+    
     
     ## GRAPHS 3, 4
-    st.subheader(f'\nAcquisition par Canal')
+    st.subheader(f'\nAcquisition par Canal',divider='gray')
     channel = build_channel(output_df)
     
     st.markdown(f'\nUtilisateurs Actifs')
-    base_c = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
+    base_channel_users = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
                                                        y=alt.Y('yearMonth:N', axis=alt.Axis(title=None, labelAngle=0), sort='descending'), #, type='temporal'
-                                                       tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N']
-                                                    )
-    chart_c = base_c.mark_bar().encode(color="Channel")
-    
-    c_text = base_c.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
+                                                       tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N'])
+    chart_channel_users = base_channel_users.mark_bar().encode(color="Channel")
+    text_channel_users = base_channel_users.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
                 ).encode(text=alt.Text('Label:N'))
-    
-    c = st.altair_chart(chart_c + c_text, use_container_width=True)
+    channel_users = st.altair_chart(chart_channel_users + text_channel_users, use_container_width=True)
 
 
     st.markdown(f'\nSessions Engagées')
-    base_d = alt.Chart(channel).mark_bar().encode(x=alt.X('engagedSessions:Q', title='', sort='ascending', stack='normalize'),
+    base_channel_sessions = alt.Chart(channel).mark_bar().encode(x=alt.X('engagedSessions:Q', title='', sort='ascending', stack='normalize'),
                                                             y=alt.Y('yearMonth:N', title='', sort='descending'),
                                                             tooltip=['engagedSessions_Percent:N','engagedSessions:Q','Channel:N','yearMonth:N']) #, type='temporal'
-    chart_d = base_d.mark_bar().encode(color="Channel")
-    
-    d_text = base_d.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
+    chart_channel_sessions = base_channel_sessions.mark_bar().encode(color="Channel")
+    text_channel_sessions = base_channel_sessions.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
                 ).encode(text=alt.Text('Label_bis:N'))
+    channel_sessions = st.altair_chart(chart_channel_sessions + text_channel_sessions, use_container_width=True)
     
-    d = st.altair_chart(chart_d + d_text, use_container_width=True)
     
 ## GRAPH 5
 with tab2:
-    st.subheader(f'\nPrincipaux KPIs de Performance')
+    st.subheader(f'\nPrincipaux KPIs de Performance', divider='gray')
     # st.dataframe(data=year_month.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
     st.dataframe(data=year_month.style.applymap(color_rate, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate']),
                     height=None, hide_index=True, on_select="rerun",
@@ -179,7 +177,6 @@ with tab2:
         "newUsers_vs_LY": st.column_config.NumberColumn("Nouveaux vs LY",format="percent",min_value=0,max_value=1),
     })
 
-    st.divider()
 
     ## DISPLAY - MAIN STRUCTURE
     col1, col2, col3 = st.columns(3)
@@ -187,7 +184,7 @@ with tab2:
     landing_table, pages_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client, country_filter, firstUserDefaultChannelGroup_filter)
 
     ## GRAPHS 7, 8, 9
-    st.subheader(f'\nTop {str(top_results)} Pays')
+    st.subheader(f'\nTop {str(top_results)} Pays', divider='gray')
     countries_table.index += 1
     st.dataframe(countries_table[0:top_results],
                 column_config={
@@ -198,7 +195,7 @@ with tab2:
             },)
 
     # with col2:
-    st.subheader(f'\nTop {str(top_results)} Landing Pages')
+    st.subheader(f'\nTop {str(top_results)} Landing Pages', divider='gray')
     landing_table.index += 1
     st.dataframe(landing_table[0:top_results],
                 column_config={
@@ -209,7 +206,7 @@ with tab2:
             },)
             
     # with col3:
-    st.subheader(f'\nTop {str(top_results)} Pages Visitées')
+    st.subheader(f'\nTop {str(top_results)} Pages Visitées', divider='gray')
     pages_table.index += 1
     st.dataframe(pages_table[0:top_results],
                 column_config={
