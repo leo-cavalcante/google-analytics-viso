@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import streamlit as st
 from google.analytics.data_v1beta.types import Metric
 from google.analytics.data_v1beta.types import OrderBy
 from google.analytics.data_v1beta.types import DateRange
@@ -21,7 +22,7 @@ def request_ga_data(property_id, start_date_input, end_date_input):
                      Metric(name="engagedSessions"), #  Metric(name="bounceRate"),
                      Metric(name="screenPageViews"),                    ## >> screen_view + page_view events
                      Metric(name="averageSessionDuration")],
-            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
+            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
                         OrderBy(dimension = {'dimension_name': 'country'}),
                         OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup'})],
             date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
@@ -161,9 +162,12 @@ def df_preparation(output_df, country_filter, firstUserDefaultChannelGroup_filte
         output_df = output_df[output_df["firstUserDefaultChannelGroup"].isin(firstUserDefaultChannelGroup_filter)]
 
     # Creating new & deleting avg columns on dataframe
+    # output_df["Year_Month"] = output_df['year', 'month'].apply(lambda x: f"{x['year']} {x['month']}", axis=1)
+    # output_df.drop(columns=['yearMonth','year','month'], inplace=True)
+    # output_df = output_df.rename(columns={'Year - Month':'yearMonth'})
     output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y%m')
     # output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m-%d %H-%M-%S')
-    output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
+    output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m')
     output_df['bounces'] = output_df['Sessions'] - output_df['engagedSessions']
     output_df['returningUsers'] = output_df['activeUsers'] - output_df['newUsers']
     output_df['SessionsDuration'] = output_df['averageSessionDuration'] * output_df['engagedSessions']
@@ -177,6 +181,7 @@ def df_preparation(output_df, country_filter, firstUserDefaultChannelGroup_filte
 def aggregate_yearMonth(output_df):
     # output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m')
     # output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
+    # st.write(output_df)
     output_df = output_df.groupby(by='yearMonth').agg(Sessions=('Sessions', 'sum'), engagedSessions=('engagedSessions', 'sum'),
                                                         bounces=('bounces','sum'), activeUsers=('activeUsers','sum'),
                                                         newUsers=('newUsers','sum'), returningUsers=('returningUsers', 'sum'),
@@ -189,9 +194,10 @@ def aggregate_yearMonth(output_df):
     output_df['avgSessionDuration'] = output_df['SessionsDuration'] / output_df['Sessions']
     output_df['avgSessionDuration'] = output_df['avgSessionDuration'].map('{:.1f}'.format) #.values.astype('str')
     output_df.drop(columns=['screenPageViews','SessionsDuration'], inplace=True)
-    output_df.reset_index(inplace=True)
     output_df = output_df.sort_values(by='yearMonth', ascending=False)
-    output_df = output_df[output_df['Sessions']>0 ] # | output_df['activeUsers']>0]
+    
+    output_df = output_df[output_df['Sessions']>0] # | output_df['activeUsers']>0]
+    output_df.reset_index(inplace=True)
     # output_df = output_df[output_df['Sessions']>0] # output_df['activeUsers']>0]
     
     return output_df
