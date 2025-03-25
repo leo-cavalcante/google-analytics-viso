@@ -130,8 +130,8 @@ with tab1:
     funnel_chart_prep = output_df.copy()
     funnel_chart_prep = funnel_chart_prep.drop(columns=['averageSessionDuration', 'SessionsDuration'])
     funnel_chart_prep = funnel_chart_prep[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers']].sum()#agg('sum')
-    funnel_chart_prep = funnel_chart_prep.rename({'screenPageViews':'Pages Vues', 'Sessions':'Séances', 'activeUsers':'Utilisateurs Actifs',
-                                                        'engagedSessions':'Séances Engagées', 'newUsers':'Utilisateurs Nouveaux', 'returningUsers':'Utilisateurs Répétifs'})
+    funnel_chart_prep = funnel_chart_prep.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Utilisateurs Actifs',
+                                                        'engagedSessions':'Sessions Engagées', 'newUsers':'Utilisateurs Nouveaux', 'returningUsers':'Utilisateurs Répétifs'})
     funnel_chart_prep = funnel_chart_prep.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
     fig = px.funnel(funnel_chart_prep, x='Nombre', y='Étape')
     st.plotly_chart(fig)
@@ -139,7 +139,7 @@ with tab1:
     st.divider()
 
     ## GRAPH 2
-    st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounced')
+    st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounces')
     year_month_table = vs_LY(output_df=output_df, comp_df=comp_df)
     # st.write(year_month_table)
     base = alt.Chart(year_month_table).encode(
