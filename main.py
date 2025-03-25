@@ -173,13 +173,15 @@ def aggregate_yearMonth(output_df):
     output_df.drop(columns=['screenPageViews','SessionsDuration'], inplace=True)
     output_df.reset_index(inplace=True)
     output_df = output_df.sort_values(by='yearMonth', ascending=False)
+    output_df = output_df[output_df['Sessions']>0 ] # | output_df['activeUsers']>0]
+    # output_df = output_df[output_df['Sessions']>0] # output_df['activeUsers']>0]
     
     return output_df
 
 def build_year_month(output_df, comp_df):
     year_month = aggregate_yearMonth(output_df)
     comp_LY = aggregate_yearMonth(comp_df)
-    year_month = pd.merge(year_month, comp_LY, on=['yearMonth'], suffixes=('', '_LY'))
+    year_month = pd.merge(year_month, comp_LY, on=['yearMonth'], how='left', suffixes=('', '_LY'))
     
     year_month['Sessions_vs_LY'] = ((year_month['Sessions']/year_month['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
     year_month['engagedSessions_vs_LY'] = (year_month['engagedSessions']/year_month['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
@@ -192,6 +194,8 @@ def build_year_month(output_df, comp_df):
     year_month['bounceRate'] = (year_month['bounces'] / year_month['Sessions']).apply(lambda x: round(x, 3))
     year_month['newUsersRate'] = (year_month['newUsers'] / year_month['activeUsers']).apply(lambda x: round(x, 3))
     year_month['returningUsersRate'] = (year_month['returningUsers'] / year_month['activeUsers']).apply(lambda x: round(x, 3))
+    
+    year_month[['Sessions','engagedSessions','activeUsers','newUsers']] = year_month[['Sessions','engagedSessions','activeUsers','newUsers']].fillna(0)
     
     year_month.sort_values('yearMonth', ascending=False, inplace=True)
     year_month.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
@@ -213,7 +217,7 @@ def build_channel(output_df):
     channel.reset_index(names=['yearMonth', 'firstUserDefaultChannelGroup'], inplace=True)
     channel_total = channel.groupby(['yearMonth']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
     channel_total.reset_index(names=['yearMonth'], inplace=True)
-    channel = pd.merge(channel, channel_total, on='yearMonth', suffixes=('','_total'))
+    channel = pd.merge(channel, channel_total, on='yearMonth', how='left', suffixes=('','_total'))
     channel['Percent'] = (channel['activeUsers']/channel['activeUsers_total']).apply(lambda x: round(100*x,0))
     channel['Percent'] = channel['Percent'].apply(lambda x: f"{x:.0f}%".format() if x>5 else '').astype('str')
     channel['activeUsers_label'] = channel['activeUsers'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
