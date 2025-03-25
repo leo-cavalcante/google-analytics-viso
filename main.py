@@ -224,6 +224,10 @@ def build_year_month(output_df, comp_df):
     year_month.sort_values('yearMonth', ascending=False, inplace=True)
     year_month.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
     
+    year_month['Sessions Engagées'] = year_month['engagedSessions']
+    year_month['Bounces'] = year_month['bounces']
+    year_month['Users de Retour'] = year_month['returningUsers']
+    year_month['Users Nouveaux'] = year_month['newUsers']
     return year_month
 
 def build_funnel(output_df):
