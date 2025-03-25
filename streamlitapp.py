@@ -19,7 +19,7 @@ client = BetaAnalyticsDataClient()
 # comp_df = st.session_state.comp_df
     
 ## STREAMLIT APP - MAIN STRUCTURE
-st.set_page_config(layout="wide", initial_sidebar_state='auto', page_icon='viso-logo.jpg', page_title='VISO MKT Digital')   # Use the full page instead of a narrow central column
+st.set_page_config(layout="wide", initial_sidebar_state='collapsed', page_icon='viso-logo.jpg', page_title='VISO MKT Digital')   # Use the full page instead of a narrow central column
 
 intro1, intro2 = st.columns([0.25, 0.75])
 with intro1:
@@ -95,11 +95,18 @@ with tab1:
         y=alt.Y('Sessions:Q', axis=alt.Axis(title='')))
 
     bar_active = base.mark_bar(color='blue', xOffset=-14, width=27).encode(y='activeUsers:Q')
+    area_returning = alt.Chart(year_month).mark_area(opacity=0.75).encode(
+                alt.X("yearMonth:N"), alt.Y("returningUsers:Q", scale=alt.Scale(zero=False))#, axis=alt.Axis(title="Petabytes"),
+                ) #.properties(height=600).configure_axis(labelFontSize=16, titleFontSize=18)
+
     text_active = bar_active.mark_text(align='center', xOffset=-14, baseline='top', dx=0, color='white', size=12).encode(text='activeUsers:Q',
                 x=alt.X('yearMonth:N', axis=alt.Axis(labelAngle=-0, title='', format="time", formatType="YYYY MMM"), sort='descending'), #labelAngle=-45,
                 y=alt.Y('activeUsers:Q', stack='zero'),)
 
     bar_new = base.mark_bar(color='green', opacity=1, xOffset=14, width=27).encode(y='newUsers:Q')
+    area_new = alt.Chart(year_month).mark_area(opacity=0.75).encode(
+                alt.X("yearMonth:N"), alt.Y("newUsers:Q", scale=alt.Scale(zero=False))#, axis=alt.Axis(title="Petabytes"),
+                ) #.properties(height=600).configure_axis(labelFontSize=16, titleFontSize=18)
     text_new = bar_new.mark_text(align='center', xOffset=14, baseline='top', dx=0, color='white', size=12).encode(text='newUsers')
     
     bar_sessions = base.mark_bar(color='darkblue', opacity=1, xOffset=-14, width=27).encode(y=alt.Y('Sessions:Q', axis=alt.Axis(title='')))
@@ -107,9 +114,31 @@ with tab1:
 
     line_bounce = base.mark_line(color='#f93d48',dx=2).encode(y=alt.Y('bounces'), text='bounceRate_txt:N')  #.encode(y='sum(bounces)')
     text_bounce = line_bounce.mark_text(align='center', xOffset=0, baseline='bottom', dx=15, color='#fa8072', opacity=1, size=12).encode(text='bounceRate_txt')
-
+    
+    year_month['Sessions Engagées'] = -year_month['engagedSessions']
+    year_month['Bounces'] = -year_month['bounces']
+    year_month['Users de Retour'] = year_month['returningUsers']
+    year_month['Users Nouveaux'] = year_month['newUsers']
+    
+    # area = alt.Chart(st.area_chart(year_month, x='yearMonth', x_label='', y=['Users de Retour','Users Nouveaux'], y_label='', stack=True, color=['#ff0000','#00ff00'], use_container_width=True)).mark_area(opacity=1).encode(x=alt.X('yearMonth:T', axis=alt.Axis(labelAngle=-0, title=''), sort='descending'), y=alt.Y(axis=alt.Axis(title='')))
+    
     bar_users = st.altair_chart(bar_sessions + text_sessions + bar_active + text_active + bar_new + text_new + line_bounce + text_bounce,
-                                theme="streamlit", use_container_width=True) # on_select="rerun")
+                            theme="streamlit", use_container_width=True) # on_select="rerun")
+    
+    # st.area_chart(data=year_month, x='yearMonth', x_label='', y=['newUsers','returningUsers','Sessions Engagées','Bounces'], y_label=['New Users', 'Returning Users', 'Sessions Engagées', 'Bounces'], stack=True, color=['#ff0000','#0ff000','#00ff00','#0000ff'], use_container_width=True)#, x_label=None, y_label=None, color=None, stack=None, width=None, height=None, use_container_width=True)
+    
+    area_base_users = alt.Chart(st.area_chart(year_month, x='yearMonth', x_label='', y=['Users de Retour','Users Nouveaux'], y_label='', stack=True, color=['#ff0000','#00ff00'], use_container_width=True)).mark_area(opacity=1).encode(x=alt.X('yearMonth:T', axis=alt.Axis(labelAngle=-0, title=''), sort='descending'),
+                                                                                                                                                                                                        y=alt.Y(axis=alt.Axis(title='')))
+    # test1 = area_base_users.mark_area(opacity=0.75).encode(y=alt.Y('yearMonth:N', axis=alt.Axis(title='')))
+    # test1 = alt.Chart(year_month).mark_area(opacity=0.75).encode(y=alt.y('newUsers:T', axis=alt.Axis(title='')))
+    # text_test1 = alt.Chart(year_month).mark_area(opacity=0.75)
+    # text_test1 = area_base_users.encode(x='yearMonth', text=alt.Text('activeUsers:Q'))
+    # text_test2 = text_test1.mark_text(align='center', xOffset=0, baseline='line-top', dx=15, color='black', opacity=1, size=20).encode(text=alt.Text('activeUsers:Q'))
+    # area_users = st.altair_chart(area_base_users, theme="streamlit", use_container_width=True)
+    # st.write(test_base)
+    
+    area_base_sessions = alt.Chart(st.area_chart(year_month, x='yearMonth', x_label='', y=['Sessions Engagées','Bounces'], y_label='', stack=True, color=['#ff0000','#00ff00'], use_container_width=True)).mark_area(opacity=0).encode(x=alt.X('yearMonth:T', axis=alt.Axis(labelAngle=-0, title=''), sort='descending'),
+                                                                                                                                                                                                                  y=alt.Y(axis=alt.Axis(title='')))
     st.divider()
     
     ## GRAPHS 3, 4
