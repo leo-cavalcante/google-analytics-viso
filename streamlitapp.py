@@ -25,10 +25,10 @@ client = BetaAnalyticsDataClient()
 
 ## STREAMLIT APP - MAIN STRUCTURE
 st.set_page_config(layout="wide")   # Use the full page instead of a narrow central column
-st.title("VISO || MARKETING DIGITAL || Tableau de Bord")
+st.header("VISO || Marketing Digital | Tableau de Bord")
 
 # FILTERS SIDEBAR -- PART 1
-st.sidebar.subheader("FILTRES")
+st.sidebar.header("Filtres")
 
 one_year = date.today() - dateutil.relativedelta.relativedelta(months=11)
 
@@ -39,18 +39,17 @@ start_date_input = st.sidebar.date_input("Date de Début d'Analyse", value=date(
 end_date_input = st.sidebar.date_input("Date de Fin d'Analyse", value="today", min_value=start_date_input,
                                             max_value=date(date.today().year, date.today().month, date.today().day-1))
 no_days = end_date_input - start_date_input
-start_date_comparison = date(start_date_input.year-1, start_date_input.month, start_date_input.day)
-end_date_comparison = date(end_date_input.year-1, end_date_input.month, end_date_input.day)
-no_days_comparison = end_date_comparison - start_date_comparison
-st.sidebar.write("Dates de Comparaison: du {} au {}".format(start_date_comparison.strftime("%d %B %Y"),end_date_comparison.strftime("%d %B %Y")))
-st.sidebar.divider()
-
 # with scol2:
 #     start_date_comparison = st.sidebar.date_input("Début Comparaison", value=date(start_date_input.year-1, start_date_input.month, start_date_input.day),
 #                                                 min_value="2016-01-01", max_value=start_date_input - dateutil.relativedelta.relativedelta(days=1))
 #     end_date_comparison = st.sidebar.date_input("Fin Comparaison", value=min(date(end_date_input.year-1, end_date_input.month, end_date_input.day),start_date_input),
 #                                                 min_value="2016-01-01", max_value=start_date_input - dateutil.relativedelta.relativedelta(days=1))
-#     st.sidebar.divider()
+
+start_date_comparison = date(start_date_input.year-1, start_date_input.month, start_date_input.day)
+end_date_comparison = date(end_date_input.year-1, end_date_input.month, end_date_input.day)
+no_days_comparison = end_date_comparison - start_date_comparison
+st.sidebar.markdown("Dates de Comparaison: du {} au {}".format(start_date_comparison.strftime("%d %B %Y"),end_date_comparison.strftime("%d %B %Y")))
+st.sidebar.divider()
 
 ## DATA COLLECTION
 @st.cache_data
@@ -76,7 +75,6 @@ def request_ga_data(property_id, start_date_input=start_date_input, end_date_inp
 request = request_ga_data(property_id, start_date_input, end_date_input)
 output_df = format_report(client, request)
 # output_df.reset_index(inplace=True)
-# st.write(output_df['yearMonth'].map(lambda x: int(x)+100))
 
 request_comp = request_ga_data(property_id, start_date_comparison, end_date_comparison)
 comp_df = format_report(client, request_comp)
@@ -242,7 +240,7 @@ with tab2:
     ## DISPLAY - MAIN STRUCTURE
     col1, col2, col3 = st.columns(3)
 
-    landing_table, page_users_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client)
+    landing_table, pages_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client)
 
     ## GRAPHS 7, 8, 9
     # with col1:
@@ -252,9 +250,9 @@ with tab2:
     st.dataframe(countries_table[0:top_results],
                 column_config={
             "country": st.column_config.TextColumn("Pays"),
-            "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
-            "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
-            "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+            "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(countries_table['activeUsers'][0:top_results])),
+            "engagedSessions": st.column_config.ProgressColumn("Sessions Engagées",format="localized",min_value=0,max_value=max(countries_table['engagedSessions'][0:top_results])),
+            "averageSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(countries_table['averageSessionDuration'][0:top_results])),
             },)
 
     # with col2:
@@ -263,18 +261,18 @@ with tab2:
     st.dataframe(landing_table[0:top_results],
                 column_config={
             "landingPage": st.column_config.TextColumn("Landing Page URL"),
-            "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
-            "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
-            "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+            "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(landing_table['activeUsers'][0:top_results])),
+            "engagedSessions": st.column_config.ProgressColumn("Sessions Engagées",format="localized",min_value=0,max_value=max(landing_table['engagedSessions'][0:top_results])),
+            "averageSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(landing_table['averageSessionDuration'][0:top_results])),
             },)
             
     # with col3:
     st.subheader(f'\nTop {str(top_results)} Pages Visitées')
-    page_users_table.index += 1
-    st.dataframe(page_users_table[0:top_results],
+    pages_table.index += 1
+    st.dataframe(pages_table[0:top_results],
                 column_config={
             "pagePath": st.column_config.TextColumn("Adresse Page URL"),
-            "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
-            "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
-            "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
+            "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(pages_table['activeUsers'][0:top_results])),
+            "engagedSessions": st.column_config.ProgressColumn("Sessions Engagées",format="localized",min_value=0,max_value=max(pages_table['engagedSessions'][0:top_results])),
+            "averageSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(pages_table['averageSessionDuration'][0:top_results])),
             },)
