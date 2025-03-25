@@ -95,16 +95,17 @@ with tab1:
     year_month['Users de Retour'] = year_month['returningUsers']
     year_month['Users Nouveaux'] = year_month['newUsers']
     
-    year_month_bis= pd.pivot_table(year_month, values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
+    year_month_bis= pd.pivot_table(year_month.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
                                    index=['yearMonth'], aggfunc='sum').reset_index()
     year_month_all = year_month_bis.melt(id_vars='yearMonth', value_vars=['Users Nouveaux','Users de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
     year_month_all['Type'] = year_month_all['SubType'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Sessions')
     # st.write(year_month_all)
     
     fig_all = px.area(year_month_all, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
-                      labels={'yearMonth': 'Année - Mois',
-                              'Nombre': 'Nombre',
-                              'Type': 'Utilisateur ou Séance'})
+                      labels={'yearMonth': 'Année - Mois', 'Nombre': 'Nombre', 'Type': 'Utilisateur ou Séance'},)
+    fig_all.update_layout(legend=dict(bgcolor=None,title=None,yanchor="top",y=1.2,xanchor="left",x=0.01),
+                          xaxis=dict(autorange="reversed"),
+                          paper_bgcolor=None)
     fig_all.update_xaxes(visible=True,title=None)
     fig_all.update_yaxes(visible=True,title=None)#"Utilisateurs ou Sessions")
     fig_all.update_traces(textposition='top center', textfont=dict(size=12,color='#9C3587',weight="bold"))
