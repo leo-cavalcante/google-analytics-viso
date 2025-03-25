@@ -114,7 +114,7 @@ with tab1:
     st.subheader(f'\nUtilisateurs : Actifs, Nouveaux & Bounces')
     year_month = build_year_month(output_df=output_df, comp_df=comp_df)
     # st.write(max(output_df[output_df['country']=='Andorra']['Sessions']))
-    st.write(year_month['Sessions'])
+    # st.write(year_month['Sessions'])
     # st.write(year_month)
     
     base = alt.Chart(year_month).encode(
