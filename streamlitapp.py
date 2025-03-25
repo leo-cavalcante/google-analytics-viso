@@ -193,8 +193,9 @@ with tab2:
     st.subheader(f'\nPrincipaux KPIs de Performance')
     year_month_table.sort_values('yearMonth', ascending=False, inplace=True)
     year_month_table.drop(columns=['engagedSessions','returningUsers','newUsers','bounces'], inplace=True)
-
-    st.dataframe(data=year_month_table.style.highlight_max(axis=0,subset=['bounceRate'],color='red').highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
+    st.write(year_month_table)
+    # st.dataframe(data=year_month_table.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
+    st.dataframe(data=year_month_table.style.applymap(color_background, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate']),
                     height=None, hide_index=True,
                     column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
                 column_config={
@@ -219,7 +220,7 @@ with tab2:
 
     # st.dataframe(data=year_month_table.style.applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.style.highlight_max(axis=0,subset=['bounceRate'],color='red').highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
     cmap = plt.cm.get_cmap('PRGn')
-    st.dataframe(data=year_month_table.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None),
+    st.dataframe(data=year_month_table.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None).applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']),
                     height=None, hide_index=True,
                     column_order=['yearMonth','Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY'],
                 column_config={
