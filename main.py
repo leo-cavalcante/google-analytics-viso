@@ -14,9 +14,6 @@ from google.analytics.data_v1beta.types import Dimension
 from google.analytics.data_v1beta.types import RunReportRequest 
 # from google.analytics.data_v1beta import BetaAnalyticsDataClient
 
-def print_hello():
-    print("Hello World")
-
 #  Format Report - run_report method
 def format_report(client, request):
     response = client.run_report(request)
@@ -150,3 +147,60 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
     countries_table['activeUsers'] = countries_table['activeUsers'].astype('int') 
     
     return landing_table, page_users_table, countries_table
+
+def aggregate_yearMonth(output_df):
+    output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m %b')
+    output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
+    output_df = output_df.groupby(by='yearMonth').agg(Sessions=('Sessions', 'sum'), engagedSessions=('engagedSessions', 'sum'),
+                                                        bounces=('bounces','sum'), activeUsers=('activeUsers','sum'),
+                                                        newUsers=('newUsers','sum'), returningUsers=('returningUsers', 'sum'),
+                                                        screenPageViews=('screenPageViews', 'sum'),
+                                                        SessionsDuration=('SessionsDuration','sum'))
+    output_df['bounceRate'] = (output_df['bounces'] / output_df['Sessions'])
+    output_df['bounceRate_txt'] = output_df['bounceRate'].map(lambda x: f"{x*100:0.0f}%")
+    output_df['avgScreenViews'] = output_df['screenPageViews'] / output_df['Sessions']
+    output_df['avgScreenViews'] = output_df['avgScreenViews'].map('{:.1f}'.format) #.values.astype('str')
+    output_df['avgSessionDuration'] = output_df['SessionsDuration'] / output_df['Sessions']
+    output_df['avgSessionDuration'] = output_df['avgSessionDuration'].map('{:.1f}'.format) #.values.astype('str')
+    output_df.drop(columns=['screenPageViews','SessionsDuration'], inplace=True)
+    output_df.reset_index(inplace=True)
+    output_df = output_df.sort_values(by='yearMonth', ascending=False)
+    
+    return output_df
+
+def vs_LY(output_df, comp_df):
+    
+    output_df = aggregate_yearMonth(output_df)
+    comp_df = aggregate_yearMonth(comp_df)
+    
+    output_df = pd.merge(output_df, comp_df, on=['yearMonth'], suffixes=('', '_LY'))
+    
+    output_df['Sessions_vs_LY'] = ((output_df['Sessions']/output_df['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
+    output_df['engagedSessions_vs_LY'] = (output_df['engagedSessions']/output_df['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
+    output_df['bounces_vs_LY'] = (output_df['bounces']/output_df['bounces_LY'] - 1).apply(lambda x: round(x, 3))
+    output_df['activeUsers_vs_LY'] = (output_df['activeUsers']/output_df['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    output_df['newUsers_vs_LY'] = (output_df['newUsers']/output_df['newUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    output_df['returningUsers_vs_LY'] = (output_df['returningUsers']/output_df['returningUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    
+    output_df.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True) #,'SessionsDuration_LY','averageSessionDuration_LY','screenPageViews_LY'
+    
+    output_df['engagedSessionsRate'] = (output_df['engagedSessions'] / output_df['Sessions']).map('{:.3f}'.format)
+    # output_df['bounceRate'] = output_df['bounces'] / output_df['Sessions']
+    output_df['newUsersRate'] = (output_df['newUsers'] / output_df['activeUsers']).map('{:.3f}'.format)
+    output_df['returningUsersRate'] = (output_df['returningUsers'] / output_df['activeUsers']).map('{:.3f}'.format)
+    
+    return output_df
+
+def color_background(value):
+    if '%' in str(value):
+        value = float(str(value).strip('%'))
+        value = value/100
+    
+    if float(value)<-0.01:
+        return f"background-color: linear-gradient(90deg,#fa8072 {100}%, transparent {50}%);"
+        # st.write(value)
+        # return f"background-color: #fa8072, transparency:{-value*100};"
+    elif float(value)>0.01:
+        return f"background: #green; opacity:{value/100};"
+    else:
+        return f"color: gray"
