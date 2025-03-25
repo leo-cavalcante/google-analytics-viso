@@ -24,13 +24,13 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'google-analytics-viso-service-ac
 client = BetaAnalyticsDataClient()
 
 ## STREAMLIT APP - MAIN STRUCTURE
-st.set_page_config(layout="wide")   # Use the full page instead of a narrow central column
+st.set_page_config(layout="wide", initial_sidebar_state='collapsed', page_icon='viso-logo.jpg', page_title='VISO MKT Digital')   # Use the full page instead of a narrow central column
 
 intro1, intro2 = st.columns([0.25, 0.75])
 with intro1:
     st.image('viso-logo.jpg')
 with intro2:
-    st.header("Marketing Digital | Tableau de Bord")
+    st.header("MARKETING Digital || Tableau de Bord")
 
 # FILTERS SIDEBAR -- PART 1
 st.sidebar.header("Filtres")
@@ -95,27 +95,6 @@ st.sidebar.button("Download Excel Output", on_click=export_to_excel(output_df))
 # st.sidebar.download_button("Download Excel Output", data=output_df, file_name=date.today().strftime("%Y-%m-%d at %H-%m-%s") + '.xlsx', on_click=export_to_excel(output_df))
 
 # APPLYING FILTERS TO DATAFRAME
-@st.cache_data
-def df_preparation(output_df, country_filter=country_filter, firstUserDefaultChannelGroup_filter=firstUserDefaultChannelGroup_filter):
-    if country_filter:
-        output_df = output_df[output_df["country"].isin(country_filter)]
-    if firstUserDefaultChannelGroup_filter:
-        output_df = output_df[output_df["firstUserDefaultChannelGroup"].isin(firstUserDefaultChannelGroup_filter)]
-
-    # Creating new & deleting avg columns on dataframe
-    output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y%m')
-    # output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m-%d %H-%M-%S')
-    output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
-    output_df['bounces'] = output_df['Sessions'] - output_df['engagedSessions']
-    output_df['returningUsers'] = output_df['activeUsers'] - output_df['newUsers']
-    output_df['SessionsDuration'] = output_df['averageSessionDuration'] * output_df['engagedSessions']
-
-    # Rectifying data type
-    output_df['activeUsers'] = output_df['activeUsers'].values.astype('int')
-    output_df['newUsers'] = output_df['newUsers'].values.astype('int')
-    
-    return output_df
-
 output_df = df_preparation(output_df=output_df, country_filter=country_filter, firstUserDefaultChannelGroup_filter=firstUserDefaultChannelGroup_filter)
 comp_df = df_preparation(output_df=comp_df, country_filter=country_filter, firstUserDefaultChannelGroup_filter=firstUserDefaultChannelGroup_filter)
 
@@ -247,7 +226,7 @@ with tab2:
     ## DISPLAY - MAIN STRUCTURE
     col1, col2, col3 = st.columns(3)
 
-    landing_table, pages_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client)
+    landing_table, pages_table, countries_table = traffic_report(end_date_input, start_date_input, property_id, client, country_filter, firstUserDefaultChannelGroup_filter)
 
     ## GRAPHS 7, 8, 9
     # with col1:
