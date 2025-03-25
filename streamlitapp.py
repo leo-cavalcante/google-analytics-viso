@@ -25,12 +25,10 @@ client = BetaAnalyticsDataClient()
 
 ## STREAMLIT APP - MAIN STRUCTURE
 st.set_page_config(layout="wide")   # Use the full page instead of a narrow central column
-st.title("MK 9 - Audience Web")
+st.title("VISO || MARKETING DIGITAL || Tableau de Bord")
 
 # FILTERS SIDEBAR -- PART 1
-st.sidebar.title("FILTRES")
-# st.sidebar.divider()
-# st.sidebar.header(f"\nDates de Début et fin d'Analyse")
+st.sidebar.subheader("FILTRES")
 
 one_year = date.today() - dateutil.relativedelta.relativedelta(months=11)
 
@@ -264,7 +262,7 @@ with tab2:
     landing_table.index += 1
     st.dataframe(landing_table[0:top_results],
                 column_config={
-            "landingPage": st.column_config.TextColumn("landingPage"),
+            "landingPage": st.column_config.TextColumn("Landing Page URL"),
             "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
             "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
             "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
@@ -275,7 +273,7 @@ with tab2:
     page_users_table.index += 1
     st.dataframe(page_users_table[0:top_results],
                 column_config={
-            "pagePath": st.column_config.TextColumn("Adresse Page"),
+            "pagePath": st.column_config.TextColumn("Adresse Page URL"),
             "activeUsers": st.column_config.NumberColumn("Utilisateurs Actifs",format="localized",min_value=0),
             "engagedSessions": st.column_config.NumberColumn("Sessions Engagées",format="localized",min_value=0),
             "averageSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
