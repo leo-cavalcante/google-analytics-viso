@@ -1,11 +1,6 @@
 ## Google Analytics 4 (GA4) Data in Pyton Using run_report
-# import os
 import numpy as np
 import pandas as pd
-# import seaborn as sns
-# import streamlit as st
-# from datetime import date
-# from datetime import timedelta
 import matplotlib.pyplot as plt
 from google.analytics.data_v1beta.types import Metric
 from google.analytics.data_v1beta.types import OrderBy
@@ -36,9 +31,7 @@ def format_report(client, request):
     
     output = pd.DataFrame(data = np.transpose(np.array(data_values, dtype = 'f')),
                                                 index=row_index_names, columns=metric_names)
-    
     output.reset_index(inplace=True)
-    
     return output
 
 ## Export to Excel
@@ -58,7 +51,50 @@ def monthly_traffic_chart(output_df):
                                         fill_value=0).droplevel(0, axis=1)
     return monthly_users_pivot
 
-def traffic_report(end_date_input, start_date_input, property_id, client, country_filter, firstUserDefaultChannelGroup_filter):
+def traffic_report(end_date_input, start_date_input, property_id, client, country_filter, firstUserDefaultChannelGroup_filter):        
+    landing_pages_request = RunReportRequest(
+                property='properties/'+property_id,
+                dimensions=[Dimension(name="country"),
+                            Dimension(name="landingPage"),
+                            Dimension(name="pagePath"),
+                            Dimension(name="firstUserDefaultChannelGroup")],
+                metrics=[Metric(name="activeUsers"),
+                     Metric(name="Sessions"),
+                     Metric(name="engagedSessions"),
+                     Metric(name="averageSessionDuration")],
+                order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
+                date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
+    )
+    
+    # Produce Top pages output tables
+    table_requested = format_report(client, landing_pages_request)
+    
+    if country_filter:
+        table_requested = table_requested[table_requested['country'].isin(country_filter)]
+    
+    if firstUserDefaultChannelGroup_filter:
+        table_requested = table_requested[table_requested['firstUserDefaultChannelGroup'].isin(firstUserDefaultChannelGroup_filter)]
+    
+    table_requested['activeUsers'] = table_requested['activeUsers'].astype('int') 
+    table_requested['engagedSessions'] = table_requested['engagedSessions'].astype('int')
+    table_requested['averageSessionDuration'] = table_requested['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
+    table_requested['SessionsDuration'] = table_requested['Sessions'] * table_requested['averageSessionDuration'] # .apply(lambda x: round(x,0)).astype('float')
+    table_requested.drop(columns=['averageSessionDuration'], inplace=True)
+    
+    countries_table = table_requested.groupby('country').sum().sort_values('activeUsers', ascending=False).reset_index()
+    countries_table['averageSessionDuration'] = (countries_table['SessionsDuration']/countries_table['Sessions']).apply(lambda x: round(x,0))
+    countries_table.drop(columns=['SessionsDuration','Sessions'], inplace=True)
+    
+    landing_table = table_requested.groupby('landingPage').sum().sort_values('activeUsers', ascending=False).reset_index()
+    landing_table['averageSessionDuration'] = (landing_table['SessionsDuration']/landing_table['Sessions']).apply(lambda x: round(x,0))
+    landing_table.drop(columns=['SessionsDuration','Sessions'], inplace=True)
+    
+    pages_table = table_requested.groupby('pagePath').sum().sort_values('activeUsers', ascending=False).reset_index()
+    pages_table['averageSessionDuration'] = (pages_table['SessionsDuration']/pages_table['Sessions']).apply(lambda x: round(x,0))
+    pages_table.drop(columns=['SessionsDuration','Sessions'], inplace=True)
+
+    return landing_table, pages_table, countries_table
+    
     # daily_traffic_request = RunReportRequest(
     #     property='properties/'+property_id,
     #     dimensions=[Dimension(name="date"), 
@@ -69,74 +105,6 @@ def traffic_report(end_date_input, start_date_input, property_id, client, countr
     #     date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
     # )
     
-    countries_users_request = RunReportRequest(
-                property='properties/'+property_id,
-                dimensions=[Dimension(name="country"),
-                            Dimension(name="firstUserDefaultChannelGroup")],
-                metrics=[Metric(name="activeUsers"),
-                    #  Metric(name="Sessions"),
-                     Metric(name="engagedSessions"),
-                     Metric(name="averageSessionDuration")],
-                order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
-                date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
-    )
-        
-    landing_pages_request = RunReportRequest(
-                property='properties/'+property_id,
-                dimensions=[Dimension(name="country"),
-                            Dimension(name="landingPage"),
-                            Dimension(name="firstUserDefaultChannelGroup")],
-                metrics=[Metric(name="activeUsers"),
-                    #  Metric(name="Sessions"),
-                     Metric(name="engagedSessions"),
-                     Metric(name="averageSessionDuration")],
-                order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
-                date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
-    )
-    
-    pages_request = RunReportRequest(
-                property='properties/'+property_id,
-                dimensions=[Dimension(name="country"),
-                            Dimension(name="pagePath"),
-                            Dimension(name="firstUserDefaultChannelGroup")],
-                metrics=[Metric(name="activeUsers"),
-                    #  Metric(name="Sessions"),
-                     Metric(name="engagedSessions"),
-                     Metric(name="averageSessionDuration")],
-                order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
-                date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
-    )
-    
-    # Produce Top pages output tables
-    countries_table = format_report(client, countries_users_request)
-    countries_table['activeUsers'] = countries_table['activeUsers'].astype('int') 
-    countries_table['engagedSessions'] = countries_table['engagedSessions'].astype('int')
-    countries_table['averageSessionDuration'] = countries_table['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
-
-    landing_table = format_report(client, landing_pages_request)
-    landing_table['activeUsers'] = landing_table['activeUsers'].astype('int') 
-    landing_table['engagedSessions'] = landing_table['engagedSessions'].astype('int')
-    landing_table['averageSessionDuration'] = landing_table['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
-    
-    pages_table = format_report(client, pages_request)
-    pages_table['activeUsers'] = pages_table['activeUsers'].astype('int') 
-    pages_table['engagedSessions'] = pages_table['engagedSessions'].astype('int') 
-    pages_table['averageSessionDuration'] = pages_table['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')    
-
-    if country_filter:
-        countries_table = countries_table[countries_table['country'].isin(country_filter)]
-        landing_table = landing_table[landing_table['country'].isin(country_filter)]
-        pages_request = pages_request[pages_request['country'].isin(country_filter)]
-    
-    if firstUserDefaultChannelGroup_filter:
-        countries_table = countries_table[countries_table['firstUserDefaultChannelGroup'].isin(firstUserDefaultChannelGroup_filter)]
-        landing_table = landing_table[landing_table['firstUserDefaultChannelGroup'].isin(firstUserDefaultChannelGroup_filter)]
-        pages_request = pages_request[pages_request['firstUserDefaultChannelGroup'].isin(firstUserDefaultChannelGroup_filter)]
-
-    countries_table = countries_table.groupby('country').sum().sort_values('activeUsers', ascending=False).reset_index()
-    landing_table = landing_table.groupby('landingPage').sum().sort_values('activeUsers', ascending=False).reset_index()
-    pages_table = pages_table.groupby('pagePath').sum().sort_values('activeUsers', ascending=False).reset_index()
-
     # daily_traffic = format_report(client, daily_traffic_request).reset_index()
     # active_users_pivot = pd.pivot_table(daily_traffic, 
     #                                  columns=['sessionMedium'], 
@@ -167,9 +135,6 @@ def traffic_report(end_date_input, start_date_input, property_id, client, countr
     # axs2.legend(title = 'User Medium', bbox_to_anchor = (1.05, 0.6))
 
     # plt.show();
-    
-    
-    return landing_table, pages_table, countries_table
 
 def df_preparation(output_df, country_filter, firstUserDefaultChannelGroup_filter):
     if country_filter:
@@ -192,8 +157,8 @@ def df_preparation(output_df, country_filter, firstUserDefaultChannelGroup_filte
     return output_df
 
 def aggregate_yearMonth(output_df):
-    output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m %b')
-    output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
+    # output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y-%m')
+    # output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
     output_df = output_df.groupby(by='yearMonth').agg(Sessions=('Sessions', 'sum'), engagedSessions=('engagedSessions', 'sum'),
                                                         bounces=('bounces','sum'), activeUsers=('activeUsers','sum'),
                                                         newUsers=('newUsers','sum'), returningUsers=('returningUsers', 'sum'),
@@ -211,34 +176,56 @@ def aggregate_yearMonth(output_df):
     
     return output_df
 
-def vs_LY(output_df, comp_df):
+def build_year_month(output_df, comp_df):
+    year_month = aggregate_yearMonth(output_df)
+    comp_LY = aggregate_yearMonth(comp_df)
+    year_month = pd.merge(year_month, comp_LY, on=['yearMonth'], suffixes=('', '_LY'))
     
-    output_df = aggregate_yearMonth(output_df)
-    comp_df = aggregate_yearMonth(comp_df)
+    year_month['Sessions_vs_LY'] = ((year_month['Sessions']/year_month['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
+    year_month['engagedSessions_vs_LY'] = (year_month['engagedSessions']/year_month['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
+    year_month['bounces_vs_LY'] = (year_month['bounces']/year_month['bounces_LY'] - 1).apply(lambda x: round(x, 3))
+    year_month['activeUsers_vs_LY'] = (year_month['activeUsers']/year_month['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    year_month['newUsers_vs_LY'] = (year_month['newUsers']/year_month['newUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    year_month['returningUsers_vs_LY'] = (year_month['returningUsers']/year_month['returningUsers_LY'] - 1).apply(lambda x: round(x, 3))
     
-    output_df = pd.merge(output_df, comp_df, on=['yearMonth'], suffixes=('', '_LY'))
+    year_month['engagedSessionsRate'] = (year_month['engagedSessions'] / year_month['Sessions']).apply(lambda x: round(x, 3))
+    year_month['bounceRate'] = (year_month['bounces'] / year_month['Sessions']).apply(lambda x: round(x, 3))
+    year_month['newUsersRate'] = (year_month['newUsers'] / year_month['activeUsers']).apply(lambda x: round(x, 3))
+    year_month['returningUsersRate'] = (year_month['returningUsers'] / year_month['activeUsers']).apply(lambda x: round(x, 3))
     
-    output_df['Sessions_vs_LY'] = ((output_df['Sessions']/output_df['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
-    output_df['engagedSessions_vs_LY'] = (output_df['engagedSessions']/output_df['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
-    output_df['bounces_vs_LY'] = (output_df['bounces']/output_df['bounces_LY'] - 1).apply(lambda x: round(x, 3))
-    output_df['activeUsers_vs_LY'] = (output_df['activeUsers']/output_df['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
-    output_df['newUsers_vs_LY'] = (output_df['newUsers']/output_df['newUsers_LY'] - 1).apply(lambda x: round(x, 3))
-    output_df['returningUsers_vs_LY'] = (output_df['returningUsers']/output_df['returningUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    year_month.sort_values('yearMonth', ascending=False, inplace=True)
+    year_month.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
     
-    output_df.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True) #,'SessionsDuration_LY','averageSessionDuration_LY','screenPageViews_LY'
-    
-    output_df['engagedSessionsRate'] = (output_df['engagedSessions'] / output_df['Sessions']).apply(lambda x: round(x, 3))
-    output_df['bounceRate'] = (output_df['bounces'] / output_df['Sessions']).apply(lambda x: round(x, 3))
-    output_df['newUsersRate'] = (output_df['newUsers'] / output_df['activeUsers']).apply(lambda x: round(x, 3))
-    output_df['returningUsersRate'] = (output_df['returningUsers'] / output_df['activeUsers']).apply(lambda x: round(x, 3))
-    
-    return output_df
+    return year_month
+
+def build_funnel(output_df):
+    funnel_chart_prep = output_df.copy()
+    funnel_chart_prep = funnel_chart_prep.drop(columns=['averageSessionDuration', 'SessionsDuration'])
+    funnel_chart_prep = funnel_chart_prep[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers']].sum()#agg('sum')
+    funnel_chart_prep = funnel_chart_prep.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Utilisateurs Actifs',
+                                                        'engagedSessions':'Sessions Engagées', 'newUsers':'Utilisateurs Nouveaux', 'returningUsers':'Utilisateurs Répétifs'})
+    funnel_chart_prep = funnel_chart_prep.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
+    return funnel_chart_prep
+
+def build_channel(output_df):
+    channel = output_df.copy()
+    channel = channel.groupby(['yearMonth', 'firstUserDefaultChannelGroup']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
+    channel.reset_index(names=['yearMonth', 'firstUserDefaultChannelGroup'], inplace=True)
+    channel_total = channel.groupby(['yearMonth']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
+    channel_total.reset_index(names=['yearMonth'], inplace=True)
+    channel = pd.merge(channel, channel_total, on='yearMonth', suffixes=('','_total'))
+    channel['Percent'] = (channel['activeUsers']/channel['activeUsers_total']).apply(lambda x: round(100*x,0))
+    channel['Percent'] = channel['Percent'].apply(lambda x: f"{x:.0f}%".format() if x>5 else '').astype('str')
+    channel['activeUsers_label'] = channel['activeUsers'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
+    channel['Label'] = channel['Percent'] + channel['activeUsers_label'] #.values.astype('str') + ')'
+    channel['engagedSessions_Percent'] = (channel['engagedSessions']/channel['engagedSessions_total']).apply(lambda x: round(100*x,0))
+    channel['engagedSessions_Percent'] = channel['engagedSessions_Percent'].apply(lambda x: f"{x:.0f}%".format() if x>10 else '').astype('str')
+    channel['engagedSessions_Label'] = channel['engagedSessions'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
+    channel['Label_bis'] = channel['engagedSessions_Percent'] + channel['engagedSessions_Label'] #.values.astype('str') + ')'
+    channel = channel.rename(columns={'yearMonth':'yearMonth','firstUserDefaultChannelGroup':'Channel', 'activeUsers':'activeUsers', 'engagedSessions':'engagedSessions'})
+    return channel
 
 def color_background(value):
-    # if '%' in str(value):
-    #     value = float(str(value).strip('%'))
-    #     value = value/100
-    
     if value<-0.50 or value>0.5:
         return f"color: white"
         
@@ -250,5 +237,6 @@ def color_background(value):
     elif value>0.01:
         return f"color: darkgreen"
         # return f"background: #green; opacity:{value/100};"
+        
     else:
         return f"color: gray"
