@@ -202,7 +202,7 @@ with tab2:
                 column_config={
         "yearMonth": st.column_config.DateColumn("Année - Mois", format="YYYY - MMM", pinned=True),
         "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(max(yearMonth_agg['Sessions']),0)), #
-        "engagedSessions": st.column_config.NumberColumn("% Engagées",format="percent",min_value=0,max_value=1),
+        "engagedSessionsRate": st.column_config.NumberColumn("% Engagées",format="percent",min_value=0,max_value=1),
         "bounceRate": st.column_config.NumberColumn("% Bounce",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
         "activeUsers": st.column_config.ProgressColumn("Users Actifs",format="localized",min_value=0,max_value=max(yearMonth_agg['activeUsers'])),
         "returningUsersRate": st.column_config.NumberColumn("% Retour",format="percent",min_value=0,max_value=1),
