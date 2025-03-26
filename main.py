@@ -230,14 +230,15 @@ def build_year_month(output_df, comp_df):
     year_month['Users Nouveaux'] = year_month['newUsers']
     return year_month
 
-def build_funnel(output_df):
-    funnel_chart_prep = output_df.copy()
-    funnel_chart_prep = funnel_chart_prep.drop(columns=['averageSessionDuration', 'SessionsDuration'])
-    funnel_chart_prep = funnel_chart_prep[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers']].sum()#agg('sum')
-    funnel_chart_prep = funnel_chart_prep.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Utilisateurs Actifs',
-                                                        'engagedSessions':'Sessions Engagées', 'newUsers':'Utilisateurs Nouveaux', 'returningUsers':'Utilisateurs Répétifs'})
-    funnel_chart_prep = funnel_chart_prep.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
-    return funnel_chart_prep
+def build_funnel(funnel_df):
+    funnel_df = funnel_df.drop(columns=['averageSessionDuration', 'SessionsDuration'])
+    funnel_df = funnel_df[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers']].sum()#agg('sum')
+    funnel_df = funnel_df.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Users Actifs',
+                                                        'engagedSessions':'Sessions Engagées', 'newUsers':'Users Nouveaux', 'returningUsers':'Users de Retour'})
+    funnel_df = funnel_df.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
+    funnel_df['Type'] = funnel_df['Étape'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Sessions')
+    funnel_df['Nombre'] = funnel_df['Nombre'].map(lambda x: round(x,-2) if x>10000 else round(x,-1) if x>100 else round(x,0))
+    return funnel_df
 
 def build_channel(output_df):
     channel = output_df.copy()
