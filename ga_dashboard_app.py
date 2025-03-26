@@ -1,27 +1,44 @@
 import os
-import datetime
+import pages as pg
+# import datetime
 import dateutil
 from functions import *
 import pandas as pd
-import altair as alt
+import numpy as np
+# import altair as alt
 import streamlit as st
+from streamlit_navigation_bar import st_navbar
 from datetime import date
 import plotly_express as px
 import matplotlib.pyplot as plt
 from bokeh.plotting import figure
 import streamlit.components.v1 as components
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
-# set_page_config()
+import warnings
+import base64
+warnings.filterwarnings("ignore")
 
-# GLOBAL VARIABLES
+## STREAMLIT APP - MAIN STRUCTURE
 property_id = "386101877"
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'google-analytics-viso-service-account.json'
-color_discrete_map_type={"Users" : "#2279CF", "Sessions" : "salmon"}
+client = BetaAnalyticsDataClient()
+st.set_page_config(layout="wide", initial_sidebar_state='auto', page_title='VISO MKT Digital', page_icon='viso-logo.svg')   # Use the full page instead of a narrow central column
 
-color_discrete_map_channels={"1-Unassigned"   : "#dc322f", "2-Paid Search"  : "#b58900",
-                            "3-Email"         : "#6c71c4", "4-Referral"        :"#859900",
-                            "5-Organic Shopping":"#d33682", "6-Organic Social"  :"#cb4b16",
-                            "7-Direct"          :"#268bd2", "8-Organic Search": "#2aa198"}
+# GLOBAL VARIABLES
+color_discrete_map_type={"Users" : "#2279CF", "Sessions" : "salmon", "Prospects" : "#2aa198"}
+
+color_discrete_map_channels={"Unassigned"   : "#dc322f",  "Paid Search"  : "#b58900",
+                            "Email"         : "#6c71c4",  "Referral"        :"#859900",
+                            "Organic Shopping":"#d33682", "Organic Social"  :"#cb4b16",
+                            "Direct"          :"#268bd2", "Organic Search": "#2aa198"}
+
+yearmonth_order=['2026 Dec', '2026 Nov', '2026 Oct', '2026 Sep', '2026 Aug', '2026 Jul', '2026 Jun', '2026 May', '2026 Apr', '2026 Mar', '2026 Feb', '2026 Jan', 
+    '2025 Dec', '2025 Nov', '2025 Oct', '2025 Sep', '2025 Aug', '2025 Jul', '2025 Jun', '2025 May', '2025 Apr', '2025 Mar', '2025 Feb', '2025 Jan', 
+    '2024 Dec', '2024 Nov', '2024 Oct', '2024 Sep', '2024 Aug', '2024 Jul', '2024 Jun', '2024 May', '2024 Apr', '2024 Mar', '2024 Feb', '2024 Jan', 
+    '2023 Dec', '2023 Nov', '2023 Oct', '2023 Sep', '2023 Aug', '2023 Jul', '2023 Jun', '2023 May', '2023 Apr', '2023 Mar', '2023 Feb', '2023 Jan', 
+    '2022 Dec', '2022 Nov', '2022 Oct', '2022 Sep', '2022 Aug', '2022 Jul', '2022 Jun', '2022 May', '2022 Apr', '2022 Mar', '2022 Feb', '2022 Jan', 
+    '2021 Dec', '2021 Nov', '2021 Oct', '2021 Sep', '2021 Aug', '2021 Jul', '2021 Jun', '2021 May', '2021 Apr', '2021 Mar', '2021 Feb', '2021 Jan', 
+    '2020 Dec', '2020 Nov', '2020 Oct', '2020 Sep', '2020 Aug', '2020 Jul', '2020 Jun', '2020 May', '2020 Apr', '2020 Mar', '2020 Feb', '2020 Jan']
 
 channels_map={"Unassigned"   : "1", "Paid Search"       : "2",
             "Email"         : "3" , "Referral"        :"4",
@@ -31,24 +48,23 @@ channels_map={"Unassigned"   : "1", "Paid Search"       : "2",
 category_order_channels=["1-Unassigned","2-Paid Search","3-Email","4-Referral","5-Organic Shopping","5-Organic Social","7-Direct","8-Organic Search"]
 # category_order_channels=["Unassigned","Paid Search","Email","Referral","Organic Shopping","Organic Social","Direct","Organic Search"]
 
-client = BetaAnalyticsDataClient()
 # output_df = st.session_state.output_df
 # comp_df = st.session_state.comp_df
     
-## STREAMLIT APP - MAIN STRUCTURE
-st.set_page_config(layout="wide", initial_sidebar_state='collapsed', page_icon='viso-logo.jpg', page_title='VISO MKT Digital')   # Use the full page instead of a narrow central column
-
-intro1, intro2 = st.columns([0.25, 0.75])
+intro1, intro2 = st.columns([0.2, 0.8])
 with intro1:
-    st.image('viso-logo.jpg')
+    st.image('viso-logo.svg')
 with intro2:
     st.header("Tableau de Bord | Marketing Digital", divider='rainbow')
 
 # FILTERS SIDEBAR -- PART 1
 st.sidebar.subheader("Filtres", divider='gray')
+# activate_log = st.toggle("Échelle Logarithmique pour agrandir les canaux moins contributeurs.", label_visibility='visible', key='loga_button1')
+activate_log = st.sidebar.toggle("Échelle Logarithmique")#, values=["Linéaire", "Logarithmique"])
+
+st.sidebar.divider()
 
 one_year = date.today() - dateutil.relativedelta.relativedelta(months=11)
-
 start_date_input = st.sidebar.date_input("Date de Début d'Analyse", value=date(one_year.year, one_year.month, 1),
                                             min_value="2016-01-01", max_value=date(date.today().year, date.today().month, date.today().day-1))
 end_date_input = st.sidebar.date_input("Date de Fin d'Analyse", value="today", min_value=start_date_input,
@@ -63,22 +79,61 @@ st.sidebar.divider()
 
 ## DATA COLLECTION
 @st.cache_data
-def request_df_and_comp(_client, property_id, start_date_input=start_date_input, end_date_input=end_date_input, start_date_comparison=start_date_comparison, end_date_comparison=end_date_comparison):
+def request_all_data(_client, property_id, start_date_input=start_date_input, end_date_input=end_date_input):
+    request_events = request_ga_key_events(property_id, start_date_input, end_date_input)
+    events_df = format_report(client, request_events)
+    # st.write(events_df.eventName.unique())
+    # st.write(events_df)
+    
+    events_df = pd.pivot_table(events_df, index=['yearMonth', 'country', 'firstUserDefaultChannelGroup'],
+                       columns=['eventName'], values='keyEvents', aggfunc="sum")
+    events_df = events_df.fillna(0).reset_index()
+    
+    events_df['download'] = [0] * len(events_df.index)
+    if 'téléchargement_catalogue_sign' in events_df.columns:
+        events_df['download'] += events_df['téléchargement_catalogue_sign']
+        events_df.drop(columns='téléchargement_catalogue_sign',inplace=True)
+    if 'télécharger_catalogue_chain' in events_df.columns:
+        events_df['download'] += events_df['télécharger_catalogue_chain']
+        events_df.drop(columns='télécharger_catalogue_chain',inplace=True)
+    if 'télécharger_catalogue_storage' in events_df.columns:
+        events_df['download'] += events_df['télécharger_catalogue_storage']
+        events_df.drop(columns={'télécharger_catalogue_storage'},inplace=True)
+    # st.write(events_df)
+    
     request = request_ga_data(property_id, start_date_input, end_date_input)
-    output_df = format_report(client, request)
+    output_df = format_report(client, request)    
     
-    request_comp = request_ga_data(property_id, start_date_comparison, end_date_comparison)
-    comp_df = format_report(client, request_comp)
+    # Creating new & deleting avg columns on dataframe
+    output_df['yearMonth'] = pd.to_datetime(output_df['yearMonth'], format='%Y%m')
+    output_df['yearMonth'] = output_df['yearMonth'].dt.strftime('%Y-%m %b')
+    output_df['bounces'] = output_df['Sessions'] - output_df['engagedSessions']
+    output_df['returningUsers'] = output_df['activeUsers'] - output_df['newUsers']
+    output_df['SessionsDuration'] = output_df['averageSessionDuration'] * output_df['engagedSessions']
+
+    # Rectifying data type
+    output_df['activeUsers'] = output_df['activeUsers'].values.astype('int')
+    output_df['newUsers'] = output_df['newUsers'].values.astype('int')
     
-    output_df[['activeUsers','newUsers','Sessions','engagedSessions','screenPageViews','averageSessionDuration']] = output_df[['activeUsers','newUsers','Sessions','engagedSessions','screenPageViews','averageSessionDuration']].fillna(0)
-    comp_df[['activeUsers','newUsers','Sessions','engagedSessions','screenPageViews','averageSessionDuration']] = comp_df[['activeUsers','newUsers','Sessions','engagedSessions','screenPageViews','averageSessionDuration']].fillna(0)
-    comp_df['yearMonth'] = comp_df['yearMonth'].map(lambda x: str(int(x)+100))
+    output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup'], suffixes=('','_event'))
+    # st.write(output_df)
     
-    return output_df, comp_df
+    output_df=output_df.fillna(0)
+    return output_df
     
 ## TABLE OUTPUT
-output_df, comp_df = request_df_and_comp(client, property_id, start_date_input, end_date_input, start_date_comparison, end_date_comparison)
+output_df = request_all_data(client, property_id, start_date_input, end_date_input)
+comp_df = request_all_data(client, property_id, start_date_input=start_date_comparison, end_date_input=end_date_comparison)
+# st.write(type(comp_df['yearMonth'][0]))
+# comp_df['yearMonth'] = comp_df['yearMonth'].to_datetime('%Y-%m %b').map(lambda x: pd.to_datetime(x, format='%Y-%m %b') + dateutil.relativedelta.relativedelta(year=1))
+comp_df['yearMonth'] = pd.to_datetime(comp_df['yearMonth'])#, format='%Y-%m %b') # + dateutil.relativedelta.relativedelta(year=1)
+comp_df['yearMonth'] = comp_df['yearMonth'].apply(lambda x: x.date())
+comp_df['yearMonth'] = comp_df['yearMonth'].apply(lambda x: x + pd.to_timedelta(365, unit='d')) # + pd.offsets.DateOffset(years=1) #.apply(lambda x: x + dateutil.relativedelta.relativedelta(year=1))
 
+output_df = pd.merge(output_df, comp_df, how='left', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup'], suffixes=('','_LY'))
+output_df = output_df.fillna(0)
+
+# st.write(output_df)
 # FILTERS SIDEBAR -- PART 2
 country_filter = st.sidebar.multiselect("Pays:", options=output_df['country'].unique())
 firstUserDefaultChannelGroup_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=output_df['firstUserDefaultChannelGroup'].unique())
@@ -86,37 +141,39 @@ st.sidebar.divider()
 top_results = st.sidebar.slider("Nombre de TOP résultats à afficher:", min_value=5, max_value=50, value=10, step=5)
 st.sidebar.divider()
 st.sidebar.button("Download Excel Output", on_click=export_to_excel(output_df))
-# st.sidebar.download_button("Download Excel Output", data=output_df, file_name=date.today().strftime("%Y-%m-%d at %H-%m-%s") + '.xlsx', on_click=export_to_excel(output_df))
 
 # APPLYING FILTERS TO DATAFRAME
-output_df = df_preparation(output_df=output_df, country_filter=country_filter, firstUserDefaultChannelGroup_filter=firstUserDefaultChannelGroup_filter)
-comp_df = df_preparation(output_df=comp_df, country_filter=country_filter, firstUserDefaultChannelGroup_filter=firstUserDefaultChannelGroup_filter)
+# output_df = df_preparation(output_df=output_df, country_filter=country_filter, firstUserDefaultChannelGroup_filter=firstUserDefaultChannelGroup_filter)
+if country_filter:
+    output_df = output_df[output_df["country"].isin(country_filter)]
+if firstUserDefaultChannelGroup_filter:
+    output_df = output_df[output_df["firstUserDefaultChannelGroup"].isin(firstUserDefaultChannelGroup_filter)]
 
 tab1, tab2 = st.tabs(["Graphs", "Tables"])
 with tab1:
     ## GRAPH 1 -- FUNNEL MARKETING
-    st.header( 'Funnel Marketing Digital', divider='gray')
+    st.subheader( 'Funnel Marketing Digital', divider='gray')
     funnel_df = build_funnel(output_df)
+    # st.write(funnel_df)
     
-    fig_funnel = px.funnel(funnel_df, x='Nombre', y='Étape', color='Type',
+    fig_funnel = px.funnel(funnel_df, x='Nombre', y='Étape', hover_data='Nombre', color='Type', log_x=activate_log,
                 color_discrete_map=color_discrete_map_type,)
-          # color_discrete_sequence=["pink", "pink", "pink", "blue", "blue","blue"],)
-    # st.write(px.colors.sequential.Type)
     fig_funnel.update_layout(font=dict(size=16))
-    fig_funnel.update_yaxes(visible=True,title=None, tickfont=dict(size=14))#"Utilisateurs ou Sessions")
+    fig_funnel.update_xaxes(visible=True, title=None)#, log_x=log_x_parameter)
+    fig_funnel.update_yaxes(visible=True, title=None, tickfont=dict(size=16))#, log_x=log_x_parameter)
     st.plotly_chart(fig_funnel)
 
 
     ## GRAPH 2
-        # components.html("""<div style="text-align: center; font-size: 36px"> Utilisateurs     vs    Sessions </div>""", height=40)
     st.subheader(f'\nUtilisateurs vs Sessions', divider='gray')
     minicol1, minicol2 = st.columns(2)
     with minicol1:
-        components.html("""<div style="text-align: center; color: blue"> Nouveaux vs de Retour </div>""", height=24)
+        components.html("""<div style="text-align: center; color: #2279CF"> Nouveaux vs de Retour </div>""", height=24)
     with minicol2:
         components.html("""<div style="text-align: center; color: salmon"> Engagées vs Bounces </div>""", height=24)
 
-    year_month = build_year_month(output_df=output_df, comp_df=comp_df)
+    year_month = aggregate_yearMonth(output_df)
+    year_month = build_year_month(output_df=year_month)#, comp_df=comp_df)
     year_month_pivot= pd.pivot_table(year_month.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
                                    index=['yearMonth'], aggfunc='sum').reset_index()
     year_month_pivot = year_month_pivot.melt(id_vars='yearMonth', value_vars=['Users Nouveaux','Users de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
@@ -125,12 +182,13 @@ with tab1:
     
     fig_area = px.area(year_month_pivot, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
                       labels={'yearMonth': 'Année - Mois', 'Nombre': 'Nombre', 'Type': 'Utilisateur ou Séance'},)
-    fig_area.update_layout(legend=dict(bgcolor='rgba(0,0,0,0)',title=None,yanchor="top",y=1.1,xanchor="left",x=0),
+    fig_area.update_layout(font=dict(size=14),
+                          legend=dict(bgcolor='rgba(0,0,0,0)',title=None,yanchor="top",y=1.1,xanchor="left",x=0),
                           xaxis=dict(autorange="reversed"),
                           paper_bgcolor=None)
     fig_area.update_xaxes(visible=True,title=None)
     fig_area.update_yaxes(visible=True,title=None)
-    fig_area.update_traces(textposition='top center', textfont=dict(size=12,color='#9C3587',weight="bold"))
+    fig_area.update_traces(textposition='top center', textfont=dict(size=14,color='#9C3587'))#,weight="bold"))   #,color='#9C3587'
     st.plotly_chart(fig_area, use_container_width=True, theme="streamlit", on_select="rerun")
     
     
@@ -147,48 +205,26 @@ with tab1:
                                        var_name="SubType", value_name="Nombre")
     channel_unpivot['Type'] = channel_unpivot['SubType'].map(lambda x: 'Users' if x[-5:]=='Users' else 'Sessions')
     channel_unpivot['Channel_DEF'] = channel_unpivot['Channel'].map(lambda x: str(channels_map[x]) + '-' + str(x))
-    # st.write(channel_unpivot)
+    channel_unpivot.sort_values(by='Channel_DEF', ascending=True, inplace=True)
     
-    # fig_stacked = px.histogram(channel_unpivot, x="Nombre", y="yearMonth", color='Channel',  facet_row="Type", #height=1000,
-    fig_stacked = px.histogram(channel_unpivot, y="yearMonth", log_x=True, x="Nombre", barmode='stack', orientation='h', barnorm='fraction', text_auto='.2%', #, text_auto='.0%',        
-                               color='Channel_DEF', color_discrete_map=color_discrete_map_channels, height=1000, facet_row="Type", facet_row_spacing=0)          #.apply("{:1f}%".format()))
+    st.text("Canaux d'Acquisition d'Utilisateurs et des Sessions")
+    
+    fig_stacked = px.histogram(channel_unpivot, log_x=activate_log, y="yearMonth", nbins=len(channel_unpivot['yearMonth'].unique()), x="Nombre", barmode='stack', orientation='h', barnorm='fraction', text_auto='.1%', #, text_auto='.0%',        # log_x=True,
+                               color='Channel', color_discrete_map=color_discrete_map_channels, height=1000, facet_row="Type", facet_row_spacing=0)          #.apply("{:1f}%".format()))
     fig_stacked.update_layout(font=dict(size=14),
-                            title={"text": "Canaux d'Acquisition d'Utilisateurs et des Sessions", "x": 0},
-                            yaxis = dict(title = "Percent", tickfont=dict(size=14), tickformat = "%b %Y"), #, tickformat = ".0%" , ticksuffix="%", categoryorder='array', categoryarray=category_order_channels
-                            xaxis = dict(autorange="reversed", tickfont=dict(size=14), tickformat = ".2%"),  #, categoryorder='array', categoryarray=category_order_channels
+                            # title={"text": "Canaux d'Acquisition d'Utilisateurs et des Sessions", "x": 0},
+                            yaxis = dict(title = "Année Mois", tickfont=dict(size=14), tickformat = "%Y-%m %b", categoryorder="array", categoryarray=yearmonth_order), #, tickformat = ".0%" , ticksuffix="%", categoryorder='array', categoryarray=category_order_channels
+                            xaxis = dict(autorange=True, tickfont=dict(size=14), tickformat = ".1%", categoryorder="array", categoryarray=category_order_channels),  #, categoryorder='array', categoryarray=category_order_channels
                             legend = dict(bgcolor='rgba(0,0,0,0)',title='Canal',yanchor="bottom",y=-0.25,xanchor="left",x=0))
     fig_stacked.update_coloraxes(colorbar_tickmode='array', colorbar_tickvals=category_order_channels)
-    fig_stacked.update_yaxes(visible=True, title=None, categoryorder="array", categoryarray=category_order_channels)
+    fig_stacked.update_yaxes(visible=True, title=None, type='category', categoryorder="category ascending", categoryarray=category_order_channels,tickformat='%Y-%m %b')   # uniformtext_mode='show')
     fig_stacked.update_xaxes(visible=False, title=None, categoryorder="array", categoryarray=category_order_channels)
-
-    # fig_stacked.update_layout(barmode='relative')
     st.plotly_chart(fig_stacked, use_container_width=True, theme="streamlit", on_select="rerun")
-    
-    # base_channel_users = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
-    #                                                    y=alt.Y('yearMonth:N', axis=alt.Axis(title=None, labelAngle=0), sort='descending'), #, type='temporal'
-    #                                                    tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N'],
-    #                                                    )
-    # chart_channel_users = base_channel_users.mark_bar().encode(color="Channel")
-    # text_channel_users = base_channel_users.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
-    #             ).encode(text=alt.Text('Label:N'))
-    # channel_users = st.altair_chart(chart_channel_users + text_channel_users, theme=None, use_container_width=True)
-
-
-    # st.markdown(f'\nSessions Engagées')
-    # base_channel_sessions = alt.Chart(channel).mark_bar().encode(x=alt.X('engagedSessions:Q', title='', sort='ascending', stack='normalize'),
-    #                                                         y=alt.Y('yearMonth:N', title='', sort='descending'),
-    #                                                         tooltip=['engagedSessions_Percent:N','engagedSessions:Q','Channel:N','yearMonth:N']) #, type='temporal'
-    # chart_channel_sessions = base_channel_sessions.mark_bar().encode(color='Channel')
-    # # chart_channel_sessions = base_channel_sessions.mark_bar().encode(color=color_discrete_map_channels['Channel'])
-    # text_channel_sessions = base_channel_sessions.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
-    #             ).encode(text=alt.Text('Label_bis:N'))
-    # channel_sessions = st.altair_chart(chart_channel_sessions + text_channel_sessions, theme=None, use_container_width=True)
     
     
 ## GRAPH 5
 with tab2:
     st.subheader(f'\nPrincipaux KPIs de Performance', divider='gray')
-    # st.dataframe(data=year_month.style.highlight_max(axis=0,subset=['bounceRate'],color='red',).highlight_max(axis=0,subset=['engagedSessionsRate','newUsersRate','returningUsersRate'],color='#34a853'),
     st.dataframe(data=year_month.style.applymap(color_rate, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate']),
                     height=None, hide_index=True, on_select="rerun",
                     column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
@@ -223,7 +259,6 @@ with tab2:
         "returningUsers_vs_LY": st.column_config.NumberColumn("Retour vs LY",format="percent",min_value=0,max_value=1),
         "newUsers_vs_LY": st.column_config.NumberColumn("Nouveaux vs LY",format="percent",min_value=0,max_value=1),
     })
-
 
     ## DISPLAY - MAIN STRUCTURE
     col1, col2, col3 = st.columns(3)
