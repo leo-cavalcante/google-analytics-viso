@@ -1,5 +1,4 @@
-## Google Analytics 4 (GA4) Data in Pyton Using run_report
-import numpy as np
+## SUPPORT FUNCTIONS FOR PROPER RUNNING OF STREAMLIT APP
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -10,33 +9,40 @@ from google.analytics.data_v1beta.types import Dimension
 from google.analytics.data_v1beta.types import RunReportRequest 
 # from google.analytics.data_v1beta import BetaAnalyticsDataClient
 
+channels_map={"Unassigned"   : "1", "Paid Search"       : "2",
+            "Email"         : "3" , "Referral"        :"4",
+            "Organic Shopping":"5", "Organic Social"  :"6",
+            "Direct"          :"7", "Organic Search": "8"}
+
 def request_ga_data(property_id, start_date_input, end_date_input):
     return RunReportRequest(
             property='properties/'+property_id,
-            dimensions=[Dimension(name="yearMonth"), # Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
+            dimensions=[Dimension(name="yearMonth"), #Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
                         Dimension(name="country"), # Dimension(name="sessionSourceMedium")], # Dimension(name="sessionMedium"), # Dimension(name="defaultChannelGroup")],       # NOT POSSIBLE TO CALCULATE NEW VISITORS
-                        Dimension(name="firstUserDefaultChannelGroup")],
+                        # Dimension(name="landingPage"),
+                        # Dimension(name="pagePath"),],
+                        Dimension(name="firstUserDefaultChannelGroup"),],
             metrics=[Metric(name="activeUsers"),
                      Metric(name="newUsers"),
                      Metric(name="Sessions"),
                      Metric(name="engagedSessions"), #  Metric(name="bounceRate"),
                      Metric(name="screenPageViews"),                    ## >> screen_view + page_view events
                      Metric(name="averageSessionDuration")],
-            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
+            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), #OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
                         OrderBy(dimension = {'dimension_name': 'country'}),
-                        OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup'})],
+                        OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup',}),],
             date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
         )
 
 def request_ga_key_events(property_id, start_date_input, end_date_input):
     return RunReportRequest(
             property='properties/'+property_id,
-            dimensions=[Dimension(name="yearMonth"), # Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
+            dimensions=[Dimension(name="yearMonth"), #Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
                         Dimension(name="country"), # Dimension(name="sessionSourceMedium")], # Dimension(name="sessionMedium"), # Dimension(name="defaultChannelGroup")],       # NOT POSSIBLE TO CALCULATE NEW VISITORS
                         Dimension(name="firstUserDefaultChannelGroup"),
                         Dimension(name="eventName")],
             metrics=[Metric(name="keyEvents")],
-            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
+            order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), #OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
                         OrderBy(dimension = {'dimension_name': 'country'}),
                         OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup'})],
             date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
@@ -67,56 +73,35 @@ def format_report(client, request):
     output.reset_index(inplace=True)
     return output
 
-def aggregate_yearMonth(output_df):
-    output_df = output_df.groupby(by='yearMonth').agg(  Sessions=('Sessions', 'sum'), engagedSessions=('engagedSessions', 'sum'),   Sessions_LY=('Sessions_LY', 'sum'), engagedSessions_LY=('engagedSessions_LY', 'sum'),
-                                                        bounces=('bounces','sum'), activeUsers=('activeUsers','sum'),               bounces_LY=('bounces_LY','sum'),    activeUsers_LY=('activeUsers_LY','sum'),
-                                                        newUsers=('newUsers','sum'), returningUsers=('returningUsers', 'sum'),      newUsers_LY=('newUsers_LY','sum'),  returningUsers_LY=('returningUsers_LY', 'sum'),
-                                                        screenPageViews=('screenPageViews', 'sum'),                                 screenPageViews_LY=('screenPageViews_LY', 'sum'),
-                                                        SessionsDuration=('SessionsDuration','sum'),                                SessionsDuration_LY=('SessionsDuration_LY','sum'),
-                                                        interet_par_les_catalogues=('interet_par_les_catalogues', 'sum'),           #interet_par_les_catalogues_LY=('interet_par_les_catalogues_LY', 'sum'),
-                                                        download=('download', 'sum'),                                               download_LY=('download_LY', 'sum'),
-                                                        demande_contact_realisee=('demande_contact_realisee', 'sum'))               #demande_contact_realisee_LY=('demande_contact_realisee_LY', 'sum')
-    output_df['bounceRate'] = (output_df['bounces'] / output_df['Sessions'])
-    output_df['bounceRate_txt'] = output_df['bounceRate'].map(lambda x: f"{x*100:0.0f}%")
-    output_df['avgScreenViews'] = output_df['screenPageViews'] / output_df['Sessions']
-    output_df['avgScreenViews'] = output_df['avgScreenViews'].map('{:.1f}'.format) #.values.astype('str')
-    output_df['avgSessionDuration'] = output_df['SessionsDuration'] / output_df['Sessions']
-    output_df['avgSessionDuration'] = output_df['avgSessionDuration'].map('{:.1f}'.format) #.values.astype('str')
-    output_df.drop(columns=['screenPageViews','SessionsDuration'], inplace=True)
-    output_df = output_df.sort_values(by='yearMonth', ascending=False)
-    
-    output_df = output_df[output_df['Sessions']>0] # | output_df['activeUsers']>0]
-    output_df.reset_index(inplace=True)
-    return output_df
+def rename_cols_df(df_final):
+    df_final = df_final.rename(columns={'engagedSessions':'Sessions Engagées', 'bounces':'Bounces',
+                               'returningUsers':'Users de Retour', 'newUsers':'Users Nouveaux'},)
+                    #   inplace=False)
+    return df_final
 
-def build_year_month(output_df):
-    year_month = output_df
+def build_df_final(output_df):
+    df_final = output_df.copy()
+    output_df=output_df.fillna(0)
     
-    year_month['Sessions_vs_LY'] = ((year_month['Sessions']/year_month['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
-    year_month['engagedSessions_vs_LY'] = (year_month['engagedSessions']/year_month['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
-    year_month['bounces_vs_LY'] = (year_month['bounces']/year_month['bounces_LY'] - 1).apply(lambda x: round(x, 3))
-    year_month['activeUsers_vs_LY'] = (year_month['activeUsers']/year_month['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
-    year_month['newUsers_vs_LY'] = (year_month['newUsers']/year_month['newUsers_LY'] - 1).apply(lambda x: round(x, 3))
-    year_month['returningUsers_vs_LY'] = (year_month['returningUsers']/year_month['returningUsers_LY'] - 1).apply(lambda x: round(x, 3))
-    
-    year_month['engagedSessionsRate'] = (year_month['engagedSessions'] / year_month['Sessions']).apply(lambda x: round(x, 3))
-    year_month['bounceRate'] = (year_month['bounces'] / year_month['Sessions']).apply(lambda x: round(x, 3))
-    year_month['newUsersRate'] = (year_month['newUsers'] / year_month['activeUsers']).apply(lambda x: round(x, 3))
-    year_month['returningUsersRate'] = (year_month['returningUsers'] / year_month['activeUsers']).apply(lambda x: round(x, 3))
-    
-    year_month[['Sessions','engagedSessions','activeUsers','newUsers']] = year_month[['Sessions','engagedSessions','activeUsers','newUsers']].fillna(0)
-    
-    year_month.sort_values('yearMonth', ascending=False, inplace=True)
-    year_month.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
-    
-    year_month['Sessions Engagées'] = year_month['engagedSessions']
-    year_month['Bounces'] = year_month['bounces']
-    year_month['Users de Retour'] = year_month['returningUsers']
-    year_month['Users Nouveaux'] = year_month['newUsers']
-    return year_month
+    # Rectifying data type
+    df_final['activeUsers'] = df_final['activeUsers'].values.astype('int')
+    df_final['newUsers'] = df_final['newUsers'].values.astype('int')
 
-def build_funnel(funnel_df):
-    funnel_df = funnel_df[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
+    # Creating new & deleting avg columns on dataframe
+    df_final['yearMonth'] = pd.to_datetime(df_final['yearMonth'], format='%Y%m')
+    df_final['yearMonth'] = df_final['yearMonth'].dt.strftime('%Y-%m %b')
+    df_final['activeUsers'] = df_final['activeUsers'].astype('int') 
+    df_final['engagedSessions'] = df_final['engagedSessions'].astype('int')
+    
+    # df_final.drop(columns={'year', 'month'})
+    df_final.sort_values('yearMonth', ascending=False, inplace=True)
+
+    return df_final
+
+# FOR GRAPH 1
+def build_funnel(df_final):
+    funnel_df = df_final[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
+    # funnel_df = df_final[['screenPageViews', 'Sessions', 'Sessions Engagées','Users Actifs', 'Users Nouveaux', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
     funnel_df = funnel_df.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Users Actifs',
                                     'engagedSessions':'Sessions Engagées', 'newUsers':'Users Nouveaux', 'returningUsers':'Users de Retour',
                                     'interet_par_les_catalogues':'Prospect Vues Catalogue', 'download':'Prospect Downloads Catalogue', 'demande_contact_realisee':'Prospect Formulaires Envoyés'})
@@ -125,29 +110,86 @@ def build_funnel(funnel_df):
     funnel_df = funnel_df.set_index('Étape')
     funnel_df = funnel_df.rename(index={'Prospect Vues Catalogue':'Vues Catalogue','Prospect Downloads Catalogue':'Downloads Catalogue','Prospect Formulaires Envoyés':'Formulaires Envoyés'})
     funnel_df['Nombre'] = funnel_df['Nombre'].values.astype('int')
+    # st.write(funnel_df['Nombre'].values.type)
     funnel_df['Nombre'] = funnel_df['Nombre'].map(lambda x: round(x,-2) if x>10000 else round(x,-1) if x>100 else round(x,0))
     funnel_df = funnel_df.reset_index()
     # funnel_df = funnel_df.loc[~funnel_df['Nombre']==0]
     return funnel_df
 
-def build_channel(output_df):
-    channel = output_df.copy()
-    channel = channel.groupby(['yearMonth', 'firstUserDefaultChannelGroup']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
-    channel.reset_index(names=['yearMonth', 'firstUserDefaultChannelGroup'], inplace=True)
-    channel_total = channel.groupby(['yearMonth']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
+# FOR GRAPHS 2 & 3
+# FOR TABLES 1 & 2
+def build_yearMonth(df_final):
+    yearMonth_agg = df_final.groupby(by='yearMonth').agg(  Sessions=('Sessions', 'sum'), engagedSessions=('engagedSessions', 'sum'),   Sessions_LY=('Sessions_LY', 'sum'), engagedSessions_LY=('engagedSessions_LY', 'sum'),
+                                                        bounces=('bounces','sum'), activeUsers=('activeUsers','sum'),               bounces_LY=('bounces_LY','sum'),    activeUsers_LY=('activeUsers_LY','sum'),
+                                                        newUsers=('newUsers','sum'), returningUsers=('returningUsers', 'sum'),      newUsers_LY=('newUsers_LY','sum'),  returningUsers_LY=('returningUsers_LY', 'sum'),
+                                                        screenPageViews=('screenPageViews', 'sum'),                                 screenPageViews_LY=('screenPageViews_LY', 'sum'),
+                                                        SessionsDuration=('SessionsDuration','sum'),                                SessionsDuration_LY=('SessionsDuration_LY','sum'),
+                                                        interet_par_les_catalogues=('interet_par_les_catalogues', 'sum'),           #interet_par_les_catalogues_LY=('interet_par_les_catalogues_LY', 'sum'),
+                                                        download=('download', 'sum'),                                               download_LY=('download_LY', 'sum'),
+                                                        demande_contact_realisee=('demande_contact_realisee', 'sum'))               #demande_contact_realisee_LY=('demande_contact_realisee_LY', 'sum')
+    
+    yearMonth_agg['Sessions_vs_LY'] = ((yearMonth_agg['Sessions']/yearMonth_agg['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg['engagedSessions_vs_LY'] = (yearMonth_agg['engagedSessions']/yearMonth_agg['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg['bounces_vs_LY'] = (yearMonth_agg['bounces']/yearMonth_agg['bounces_LY'] - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg['activeUsers_vs_LY'] = (yearMonth_agg['activeUsers']/yearMonth_agg['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg['newUsers_vs_LY'] = (yearMonth_agg['newUsers']/yearMonth_agg['newUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg['returningUsers_vs_LY'] = (yearMonth_agg['returningUsers']/yearMonth_agg['returningUsers_LY'] - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
+    
+    yearMonth_agg['engagedSessionsRate'] = (yearMonth_agg['engagedSessions'] / yearMonth_agg['Sessions']).apply(lambda x: round(x, 3))
+    yearMonth_agg['bounceRate'] = (yearMonth_agg['bounces'] / yearMonth_agg['Sessions']).apply(lambda x: round(x, 3))
+    yearMonth_agg['newUsersRate'] = (yearMonth_agg['newUsers'] / yearMonth_agg['activeUsers']).apply(lambda x: round(x, 3))
+    yearMonth_agg['returningUsersRate'] = (yearMonth_agg['returningUsers'] / yearMonth_agg['activeUsers']).apply(lambda x: round(x, 3))
+    
+    yearMonth_agg['bounceRate'] = (yearMonth_agg['bounces'] / yearMonth_agg['Sessions'])
+    yearMonth_agg['bounceRate_txt'] = yearMonth_agg['bounceRate'].map(lambda x: f"{x*100:0.0f}%")
+    yearMonth_agg['avgScreenViews'] = yearMonth_agg['screenPageViews'] / yearMonth_agg['Sessions']
+    yearMonth_agg['avgScreenViews'] = yearMonth_agg['avgScreenViews'].map('{:.1f}'.format) #.values.astype('str')
+    yearMonth_agg['avgSessionDuration'] = yearMonth_agg['SessionsDuration'] / yearMonth_agg['Sessions']
+    yearMonth_agg['avgSessionDuration'] = yearMonth_agg['avgSessionDuration'].map('{:.1f}'.format) #.values.astype('str')
+    yearMonth_agg.drop(columns=['screenPageViews','SessionsDuration'], inplace=True)
+    yearMonth_agg = yearMonth_agg.sort_values(by='yearMonth', ascending=False)
+    
+    yearMonth_agg = yearMonth_agg[yearMonth_agg['Sessions']>0] # | yearMonth_agg['activeUsers']>0]
+    yearMonth_agg.reset_index(inplace=True)
+    
+    # st.write(yearMonth_pivot)
+    
+    return yearMonth_agg
+
+# FOR GRAPH 3
+def build_channel(df_final):
+    channel_df = df_final.copy()
+    channel_df = channel_df.groupby(['yearMonth', 'firstUserDefaultChannelGroup']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
+    channel_df.reset_index(names=['yearMonth', 'firstUserDefaultChannelGroup'], inplace=True)
+    
+    channel_total = channel_df.groupby(['yearMonth']).agg(engagedSessions=('engagedSessions', 'sum'), activeUsers=('activeUsers','sum'))
     channel_total.reset_index(names=['yearMonth'], inplace=True)
-    channel = pd.merge(channel, channel_total, on='yearMonth', how='left', suffixes=('','_total'))
-    channel['Percent'] = (channel['activeUsers']/channel['activeUsers_total']).apply(lambda x: round(100*x,0))
-    channel['Percent'] = channel['Percent'].apply(lambda x: f"{x:.0f}%".format() if x>5 else '').astype('str')
-    channel['activeUsers_label'] = channel['activeUsers'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
-    channel['Label'] = channel['Percent'] + channel['activeUsers_label'] #.values.astype('str') + ')'
-    channel['engagedSessions_Percent'] = (channel['engagedSessions']/channel['engagedSessions_total']).apply(lambda x: round(100*x,0))
-    channel['engagedSessions_Percent'] = channel['engagedSessions_Percent'].apply(lambda x: f"{x:.0f}%".format() if x>10 else '').astype('str')
-    channel['engagedSessions_Label'] = channel['engagedSessions'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
-    channel['Label_bis'] = channel['engagedSessions_Percent'] + channel['engagedSessions_Label'] #.values.astype('str') + ')'
-    channel = channel.rename(columns={'yearMonth':'yearMonth','firstUserDefaultChannelGroup':'Channel', 'activeUsers':'activeUsers', 'engagedSessions':'engagedSessions'})
-    # st.write(channel)
-    return channel
+    
+    channel_df = pd.merge(channel_df, channel_total, on='yearMonth', how='left', suffixes=('','_total'))
+    channel_df['Percent'] = (channel_df['activeUsers']/channel_df['activeUsers_total']).apply(lambda x: round(100*x,0))
+    channel_df['Percent'] = channel_df['Percent'].apply(lambda x: f"{x:.0f}%".format() if x>5 else '').astype('str')
+    channel_df['activeUsers_label'] = channel_df['activeUsers'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
+    channel_df['Label'] = channel_df['Percent'] + channel_df['activeUsers_label'] #.values.astype('str') + ')'
+    channel_df['engagedSessions_Percent'] = (channel_df['engagedSessions']/channel_df['engagedSessions_total']).apply(lambda x: round(100*x,0))
+    channel_df['engagedSessions_Percent'] = channel_df['engagedSessions_Percent'].apply(lambda x: f"{x:.0f}%".format() if x>10 else '').astype('str')
+    channel_df['engagedSessions_Label'] = channel_df['engagedSessions'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
+    channel_df['Label_bis'] = channel_df['engagedSessions_Percent'] + channel_df['engagedSessions_Label'] #.values.astype('str') + ')'
+    channel_df = channel_df.rename(columns={'yearMonth':'yearMonth','firstUserDefaultChannelGroup':'Channel', 'activeUsers':'activeUsers', 'engagedSessions':'engagedSessions'})
+    
+    channel_pivot = pd.pivot_table(channel_df, index=['yearMonth', 'Channel'],
+                             values=['engagedSessions','activeUsers'],
+                             aggfunc='sum').reset_index()
+    channel_unpivot = channel_pivot.melt(id_vars=['yearMonth','Channel'],
+                                       value_vars=['activeUsers','engagedSessions'],
+                                       var_name="SubType", value_name="Nombre")
+    channel_unpivot['Type'] = channel_unpivot['SubType'].map(lambda x: 'Users' if x[-5:]=='Users' else 'Sessions')
+    channel_unpivot['Channel_DEF'] = channel_unpivot['Channel'].map(lambda x: str(channels_map[x]) + '-' + str(x))
+    channel_unpivot = channel_unpivot.sort_values(by='Channel_DEF', ascending=True)
+    channel_unpivot.reset_index(inplace=True)
+    # st.write(channel_unpivot)
+    
+    return channel_unpivot
 
 def monthly_traffic_chart(output_df):
     monthly_users_pivot = pd.pivot_table(output_df, 
