@@ -16,6 +16,13 @@ from google.analytics.data_v1beta import BetaAnalyticsDataClient
 # GLOBAL VARIABLES
 property_id = "386101877"
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'google-analytics-viso-service-account.json'
+color_discrete_map_type={"Users" : "#2279CF", "Sessions" : "salmon"}
+
+color_discrete_map_channels={"Paid Search"  : "#b58900", "Organic Social"  :"#cb4b16",
+                            "Unnassigned"   : "#dc322f", "Organic Shopping":"#d33682",
+                            "Email"         : "#6c71c4", "Direct"          :"#268bd2",
+                            "Organic Search": "#2aa198", "Referral"        :"#859900"}
+
 client = BetaAnalyticsDataClient()
 # output_df = st.session_state.output_df
 # comp_df = st.session_state.comp_df
@@ -80,10 +87,14 @@ comp_df = df_preparation(output_df=comp_df, country_filter=country_filter, first
 tab1, tab2 = st.tabs(["Graphs", "Tables"])
 with tab1:
     ## GRAPH 1 -- FUNNEL MARKETING
-    st.header( 'Funnel Marketing Digital',divider='gray')
-    funnel_chart = build_funnel(output_df)
-    fig_funnel = px.funnel(funnel_chart, x='Nombre', y='Étape')
-    fig_funnel.update_layout(font=dict(size=14))
+    st.header( 'Funnel Marketing Digital', divider='gray')
+    funnel_df = build_funnel(output_df)
+    
+    fig_funnel = px.funnel(funnel_df, x='Nombre', y='Étape', color='Type',
+                color_discrete_map=color_discrete_map_type,)
+          # color_discrete_sequence=["pink", "pink", "pink", "blue", "blue","blue"],)
+    # st.write(px.colors.sequential.Type)
+    fig_funnel.update_layout(font=dict(size=16))
     fig_funnel.update_yaxes(visible=True,title=None, tickfont=dict(size=14))#"Utilisateurs ou Sessions")
     st.plotly_chart(fig_funnel)
 
@@ -93,9 +104,9 @@ with tab1:
     st.subheader(f'\nUtilisateurs vs Sessions', divider='gray')
     minicol1, minicol2 = st.columns(2)
     with minicol1:
-        components.html("""<div style="text-align: center; color: blue"> Nouveaux vs de Retour </div>""", height=50)
+        components.html("""<div style="text-align: center; color: blue"> Nouveaux vs de Retour </div>""", height=24)
     with minicol2:
-        components.html("""<div style="text-align: center; color: salmon"> Engagées vs Bounces </div>""", height=50)
+        components.html("""<div style="text-align: center; color: salmon"> Engagées vs Bounces </div>""", height=24)
 
     year_month = build_year_month(output_df=output_df, comp_df=comp_df)
     year_month_pivot= pd.pivot_table(year_month.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
@@ -106,7 +117,7 @@ with tab1:
     
     fig_area = px.area(year_month_pivot, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
                       labels={'yearMonth': 'Année - Mois', 'Nombre': 'Nombre', 'Type': 'Utilisateur ou Séance'},)
-    fig_area.update_layout(legend=dict(bgcolor=None,title=None,yanchor="top",y=1.2,xanchor="left",x=0.01),
+    fig_area.update_layout(legend=dict(bgcolor='rgba(0,0,0,0)',title=None,yanchor="top",y=1.1,xanchor="left",x=0),
                           xaxis=dict(autorange="reversed"),
                           paper_bgcolor=None)
     fig_area.update_xaxes(visible=True,title=None)
@@ -118,25 +129,51 @@ with tab1:
     ## GRAPHS 3, 4
     st.subheader(f'\nAcquisition par Canal',divider='gray')
     channel = build_channel(output_df)
+    # st.markdown(f'\nUtilisateurs Actifs')
     
-    st.markdown(f'\nUtilisateurs Actifs')
-    base_channel_users = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
-                                                       y=alt.Y('yearMonth:N', axis=alt.Axis(title=None, labelAngle=0), sort='descending'), #, type='temporal'
-                                                       tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N'])
-    chart_channel_users = base_channel_users.mark_bar().encode(color="Channel")
-    text_channel_users = base_channel_users.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
-                ).encode(text=alt.Text('Label:N'))
-    channel_users = st.altair_chart(chart_channel_users + text_channel_users, use_container_width=True)
+    channel_pivot = pd.pivot_table(channel, index=['yearMonth', 'Channel'],
+                             values=['engagedSessions','activeUsers'],
+                             aggfunc='sum').reset_index()
+    channel_unpivot = channel_pivot.melt(id_vars=['yearMonth','Channel'],
+                                       value_vars=['activeUsers','engagedSessions'],
+                                       var_name="SubType", value_name="Nombre")
+    channel_unpivot['Type'] = channel_unpivot['SubType'].map(lambda x: 'Users' if x[-5:]=='Users' else 'Sessions')
+    # st.write(channel_unpivot)
+    
+    fig_stacked = px.histogram(channel_unpivot, x="yearMonth", y="Nombre", color='Channel',  facet_row="Type", height=1000,
+    # fig_stacked = px.histogram(channel_unpivot, x="Nombre", y="yearMonth", color='Channel', orientation='h', facet_row="Type", #height=1000,
+                               color_discrete_map=color_discrete_map_channels, barnorm='fraction', text_auto='.0%',          #.apply("{:1f}%".format()))
+                    ).update_layout(
+                            title={"text": "Canaux d'Acquisition d'Utilisateurs et des Sessions", "x": 0},
+                            # yaxis_title="Percent",
+                            yaxis = dict(title = "Percent", tickformat = ".0%"),
+                            xaxis = dict(autorange="reversed"),
+                            legend=dict(bgcolor='rgba(0,0,0,0)',title='Canal',yanchor="bottom",y=-0.4,xanchor="left",x=0),
+                    ).update_xaxes(visible=True,title=None, categoryorder='total descending'
+                    ).update_yaxes(visible=True,title=None)
+
+    fig_stacked.update_layout(barmode='relative')
+    st.plotly_chart(fig_stacked, use_container_width=True, theme="streamlit", on_select="rerun")
+    
+    # base_channel_users = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
+    #                                                    y=alt.Y('yearMonth:N', axis=alt.Axis(title=None, labelAngle=0), sort='descending'), #, type='temporal'
+    #                                                    tooltip=['Percent:N','activeUsers:Q','Channel:N','yearMonth:N'],
+    #                                                    )
+    # chart_channel_users = base_channel_users.mark_bar().encode(color="Channel")
+    # text_channel_users = base_channel_users.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
+    #             ).encode(text=alt.Text('Label:N'))
+    # channel_users = st.altair_chart(chart_channel_users + text_channel_users, theme=None, use_container_width=True)
 
 
-    st.markdown(f'\nSessions Engagées')
-    base_channel_sessions = alt.Chart(channel).mark_bar().encode(x=alt.X('engagedSessions:Q', title='', sort='ascending', stack='normalize'),
-                                                            y=alt.Y('yearMonth:N', title='', sort='descending'),
-                                                            tooltip=['engagedSessions_Percent:N','engagedSessions:Q','Channel:N','yearMonth:N']) #, type='temporal'
-    chart_channel_sessions = base_channel_sessions.mark_bar().encode(color="Channel")
-    text_channel_sessions = base_channel_sessions.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
-                ).encode(text=alt.Text('Label_bis:N'))
-    channel_sessions = st.altair_chart(chart_channel_sessions + text_channel_sessions, use_container_width=True)
+    # st.markdown(f'\nSessions Engagées')
+    # base_channel_sessions = alt.Chart(channel).mark_bar().encode(x=alt.X('engagedSessions:Q', title='', sort='ascending', stack='normalize'),
+    #                                                         y=alt.Y('yearMonth:N', title='', sort='descending'),
+    #                                                         tooltip=['engagedSessions_Percent:N','engagedSessions:Q','Channel:N','yearMonth:N']) #, type='temporal'
+    # chart_channel_sessions = base_channel_sessions.mark_bar().encode(color='Channel')
+    # # chart_channel_sessions = base_channel_sessions.mark_bar().encode(color=color_discrete_map_channels['Channel'])
+    # text_channel_sessions = base_channel_sessions.mark_text(align='center', baseline='line-top', xOffset=-50, yOffset=-5, size=12, color='white'
+    #             ).encode(text=alt.Text('Label_bis:N'))
+    # channel_sessions = st.altair_chart(chart_channel_sessions + text_channel_sessions, theme=None, use_container_width=True)
     
     
 ## GRAPH 5
@@ -151,7 +188,7 @@ with tab2:
         "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(max(year_month['Sessions']),0)), #
         "engagedSessionsRate": st.column_config.NumberColumn("% Engagées",format="percent",min_value=0,max_value=1),
         "bounceRate": st.column_config.NumberColumn("% Bounce",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
-        "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0), #,max_value=max(year_month['activeUsers'])
+        "activeUsers": st.column_config.ProgressColumn("Utilisateurs Actifs",format="localized",min_value=0,max_value=max(year_month['activeUsers'])),
         "returningUsersRate": st.column_config.NumberColumn("% Retour",format="percent",min_value=0,max_value=1),
         "newUsersRate": st.column_config.NumberColumn("% Nouveaux",format="percent",min_value=0,max_value=1),
         "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0),
@@ -163,7 +200,8 @@ with tab2:
     st.markdown(f"\nComparaison à l'Année Précédente")
     year_month.sort_values('yearMonth', ascending=False, inplace=True)
     
-    cmap = plt.cm.get_cmap('PRGn')
+    cmap = plt.cm.get_cmap('PiYG')
+    # cmap = plt.cm.get_cmap('PRGn')
     st.dataframe(data=year_month.style.background_gradient(cmap=cmap,vmin=-1,vmax=1,axis=None).applymap(color_background, subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
                     height=None, hide_index=True, on_select="rerun",
                     column_order=['yearMonth','Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY'],
