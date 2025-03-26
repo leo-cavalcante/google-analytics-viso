@@ -1,12 +1,10 @@
 ## STREAMLIT APP
 import os
-# import pages as pg
 import dateutil
 from functions import *
 import pandas as pd
 import numpy as np
 import streamlit as st
-from streamlit_navigation_bar import st_navbar
 from datetime import date
 import plotly_express as px
 import matplotlib.pyplot as plt
@@ -213,7 +211,7 @@ with tab2:
     
     
     ## TABLE 2
-    st.markdown(f"\nComparaison à l'Année Précédente")
+    st.subheader(f"\nComparaison à l'Année Précédente")
     yearMonth_agg.sort_values('yearMonth', ascending=False, inplace=True)
     
     cmap = plt.cm.get_cmap('PiYG')
