@@ -1,4 +1,5 @@
 ## SUPPORT FUNCTIONS FOR PROPER RUNNING OF STREAMLIT APP
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -75,7 +76,8 @@ def format_report(client, request):
 
 def rename_cols_df(df_final):
     df_final = df_final.rename(columns={'engagedSessions':'Sessions Engagées', 'bounces':'Bounces',
-                               'returningUsers':'Users de Retour', 'newUsers':'Users Nouveaux'},)
+                               'returningUsers':'Visiteurs de Retour', 'newUsers':'Visiteurs Nouveaux',
+                               'downloads':'Prospects Catalogue','demande_contact_realisee':'Prospects Formulaire'},)
                     #   inplace=False)
     return df_final
 
@@ -101,14 +103,14 @@ def build_df_final(output_df):
 # FOR GRAPH 1
 def build_funnel(df_final):
     funnel_df = df_final[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
-    # funnel_df = df_final[['screenPageViews', 'Sessions', 'Sessions Engagées','Users Actifs', 'Users Nouveaux', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
-    funnel_df = funnel_df.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Users Actifs',
-                                    'engagedSessions':'Sessions Engagées', 'newUsers':'Users Nouveaux', 'returningUsers':'Users de Retour',
-                                    'interet_par_les_catalogues':'Prospect Vues Catalogue', 'download':'Prospect Downloads Catalogue', 'demande_contact_realisee':'Prospect Formulaires Envoyés'})
+    # funnel_df = df_final[['screenPageViews', 'Sessions', 'Sessions Engagées','Visiteurs Actifs', 'Visiteurs Nouveaux', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
+    funnel_df = funnel_df.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Visiteurs Actifs',
+                                    'engagedSessions':'Sessions Engagées', 'newUsers':'Visiteurs Nouveaux', 'returningUsers':'Visiteurs de Retour',
+                                    'interet_par_les_catalogues':'Prospects Vues Catalogue', 'download':'Prospects Catalogue', 'demande_contact_realisee':'Prospects Formulaire'})
     funnel_df = funnel_df.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
-    funnel_df['Type'] = funnel_df['Étape'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Prospects' if x[0:8]=='Prospect' else 'Sessions')
+    funnel_df['Type'] = funnel_df['Étape'].map(lambda x: 'Visiteurs' if x[0:8]=='Visiteur' else 'Prospects' if x[0:8]=='Prospect' else 'Sessions')
     funnel_df = funnel_df.set_index('Étape')
-    funnel_df = funnel_df.rename(index={'Prospect Vues Catalogue':'Vues Catalogue','Prospect Downloads Catalogue':'Downloads Catalogue','Prospect Formulaires Envoyés':'Formulaires Envoyés'})
+    funnel_df = funnel_df.rename(index={'Prospects Vues Catalogue':'Vues Catalogue','Prospects Catalogue':'Prospects Catalogue','Prospects Formulaire':'Prospects Formulaire'})
     funnel_df['Nombre'] = funnel_df['Nombre'].values.astype('int')
     # st.write(funnel_df['Nombre'].values.type)
     funnel_df['Nombre'] = funnel_df['Nombre'].map(lambda x: round(x,-2) if x>10000 else round(x,-1) if x>100 else round(x,0))
