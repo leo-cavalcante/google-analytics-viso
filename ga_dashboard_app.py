@@ -1,9 +1,9 @@
 import os
 import datetime
 import dateutil
-from main import *
-import altair as alt
+from functions import *
 import pandas as pd
+import altair as alt
 import streamlit as st
 from datetime import date
 import plotly_express as px
@@ -18,10 +18,18 @@ property_id = "386101877"
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'google-analytics-viso-service-account.json'
 color_discrete_map_type={"Users" : "#2279CF", "Sessions" : "salmon"}
 
-color_discrete_map_channels={"Paid Search"  : "#b58900", "Organic Social"  :"#cb4b16",
-                            "Unnassigned"   : "#dc322f", "Organic Shopping":"#d33682",
-                            "Email"         : "#6c71c4", "Direct"          :"#268bd2",
-                            "Organic Search": "#2aa198", "Referral"        :"#859900"}
+color_discrete_map_channels={"1-Unassigned"   : "#dc322f", "2-Paid Search"  : "#b58900",
+                            "3-Email"         : "#6c71c4", "4-Referral"        :"#859900",
+                            "5-Organic Shopping":"#d33682", "6-Organic Social"  :"#cb4b16",
+                            "7-Direct"          :"#268bd2", "8-Organic Search": "#2aa198"}
+
+channels_map={"Unassigned"   : "1", "Paid Search"       : "2",
+            "Email"         : "3" , "Referral"        :"4",
+            "Organic Shopping":"5", "Organic Social"  :"6",
+            "Direct"          :"7", "Organic Search": "8"}
+
+category_order_channels=["1-Unassigned","2-Paid Search","3-Email","4-Referral","5-Organic Shopping","5-Organic Social","7-Direct","8-Organic Search"]
+# category_order_channels=["Unassigned","Paid Search","Email","Referral","Organic Shopping","Organic Social","Direct","Organic Search"]
 
 client = BetaAnalyticsDataClient()
 # output_df = st.session_state.output_df
@@ -138,21 +146,22 @@ with tab1:
                                        value_vars=['activeUsers','engagedSessions'],
                                        var_name="SubType", value_name="Nombre")
     channel_unpivot['Type'] = channel_unpivot['SubType'].map(lambda x: 'Users' if x[-5:]=='Users' else 'Sessions')
+    channel_unpivot['Channel_DEF'] = channel_unpivot['Channel'].map(lambda x: str(channels_map[x]) + '-' + str(x))
     # st.write(channel_unpivot)
     
-    fig_stacked = px.histogram(channel_unpivot, x="yearMonth", y="Nombre", color='Channel',  facet_row="Type", height=1000,
-    # fig_stacked = px.histogram(channel_unpivot, x="Nombre", y="yearMonth", color='Channel', orientation='h', facet_row="Type", #height=1000,
-                               color_discrete_map=color_discrete_map_channels, barnorm='fraction', text_auto='.0%',          #.apply("{:1f}%".format()))
-                    ).update_layout(
+    # fig_stacked = px.histogram(channel_unpivot, x="Nombre", y="yearMonth", color='Channel',  facet_row="Type", #height=1000,
+    fig_stacked = px.histogram(channel_unpivot, y="yearMonth", log_x=True, x="Nombre", barmode='stack', orientation='h', barnorm='fraction', text_auto='.2%', #, text_auto='.0%',        
+                               color='Channel_DEF', color_discrete_map=color_discrete_map_channels, height=1000, facet_row="Type", facet_row_spacing=0)          #.apply("{:1f}%".format()))
+    fig_stacked.update_layout(font=dict(size=14),
                             title={"text": "Canaux d'Acquisition d'Utilisateurs et des Sessions", "x": 0},
-                            # yaxis_title="Percent",
-                            yaxis = dict(title = "Percent", tickformat = ".0%"),
-                            xaxis = dict(autorange="reversed"),
-                            legend=dict(bgcolor='rgba(0,0,0,0)',title='Canal',yanchor="bottom",y=-0.4,xanchor="left",x=0),
-                    ).update_xaxes(visible=True,title=None, categoryorder='total descending'
-                    ).update_yaxes(visible=True,title=None)
+                            yaxis = dict(title = "Percent", tickfont=dict(size=14), tickformat = "%b %Y"), #, tickformat = ".0%" , ticksuffix="%", categoryorder='array', categoryarray=category_order_channels
+                            xaxis = dict(autorange="reversed", tickfont=dict(size=14), tickformat = ".2%"),  #, categoryorder='array', categoryarray=category_order_channels
+                            legend = dict(bgcolor='rgba(0,0,0,0)',title='Canal',yanchor="bottom",y=-0.25,xanchor="left",x=0))
+    fig_stacked.update_coloraxes(colorbar_tickmode='array', colorbar_tickvals=category_order_channels)
+    fig_stacked.update_yaxes(visible=True, title=None, categoryorder="array", categoryarray=category_order_channels)
+    fig_stacked.update_xaxes(visible=False, title=None, categoryorder="array", categoryarray=category_order_channels)
 
-    fig_stacked.update_layout(barmode='relative')
+    # fig_stacked.update_layout(barmode='relative')
     st.plotly_chart(fig_stacked, use_container_width=True, theme="streamlit", on_select="rerun")
     
     # base_channel_users = alt.Chart(channel).mark_bar().encode(x=alt.X("activeUsers:Q", title='', sort='ascending', stack='normalize'), #, scale=alt.Scale(clamp=True)
