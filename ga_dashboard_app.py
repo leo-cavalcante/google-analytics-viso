@@ -24,7 +24,7 @@ client = BetaAnalyticsDataClient()
 st.set_page_config(layout="wide", initial_sidebar_state='auto', page_title='VISO MKT Digital', page_icon='viso-logo.svg')   # Use the full page instead of a narrow central column
 
 # GLOBAL VARIABLES
-color_discrete_map_type={"Users" : "#2279CF", "Sessions" : "salmon", "Prospects" : "#2aa198"}
+color_discrete_map_type={"Visiteurs" : "#2279CF", "Sessions" : "salmon", "Prospects" : "#2aa198"}
 
 color_discrete_map_channels={"Unassigned"   : "#dc322f",  "Paid Search"  : "#b58900",
                             "Email"         : "#6c71c4",  "Referral"        :"#859900",
@@ -145,7 +145,7 @@ with tab1:
 
 
     ## GRAPH 2
-    st.subheader(f'\nUsers vs Sessions', divider='gray')
+    st.subheader(f'\nVisiteurs vs Sessions', divider='gray')
     minicol1, minicol2 = st.columns(2)
     with minicol1:
         components.html("""<div style="text-align: center; color: #2279CF"> Nouveaux vs de Retour </div>""", height=24)
@@ -157,10 +157,10 @@ with tab1:
     
     yearMonth_pivot = rename_cols_df(yearMonth_agg)
     
-    yearMonth_pivot= pd.pivot_table(yearMonth_pivot.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Users Nouveaux','Users de Retour'],
+    yearMonth_pivot= pd.pivot_table(yearMonth_pivot.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Bounces','Visiteurs Nouveaux','Visiteurs de Retour'],
                                    index=['yearMonth'], aggfunc='sum').reset_index()
-    yearMonth_pivot = yearMonth_pivot.melt(id_vars='yearMonth', value_vars=['Users Nouveaux','Users de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
-    yearMonth_pivot['Type'] = yearMonth_pivot['SubType'].map(lambda x: 'Users' if x[0:5]=='Users' else 'Sessions')
+    yearMonth_pivot = yearMonth_pivot.melt(id_vars='yearMonth', value_vars=['Visiteurs Nouveaux','Visiteurs de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
+    yearMonth_pivot['Type'] = yearMonth_pivot['SubType'].map(lambda x: 'Visiteurs' if x[0:8]=='Visiteur' else 'Prospects' if x[0:8]=='Prospect' else 'Sessions')
     
     fig_area = px.area(yearMonth_pivot, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
                       labels={'yearMonth': 'Année - Mois', 'Nombre': 'Nombre', 'Type': 'Utilisateur ou Séance'},)
@@ -176,7 +176,7 @@ with tab1:
     
     ## GRAPHS 3, 4
     st.subheader(f'\nAcquisition par Canal',divider='gray')
-    st.text("Canaux d'Acquisition d'Users et des Sessions")
+    st.text("Canaux d'Acquisition de Visiteurs et des Sessions")
     
     channel_unpivot = build_channel(df_final)
     
@@ -204,7 +204,7 @@ with tab2:
         "Sessions": st.column_config.ProgressColumn("Sessions", format="localized",min_value=0,max_value=max(max(yearMonth_agg['Sessions']),0)), #
         "engagedSessionsRate": st.column_config.NumberColumn("% Engagées",format="percent",min_value=0,max_value=1),
         "bounceRate": st.column_config.NumberColumn("% Bounce",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1,width="small"),
-        "activeUsers": st.column_config.ProgressColumn("Users Actifs",format="localized",min_value=0,max_value=max(yearMonth_agg['activeUsers'])),
+        "activeUsers": st.column_config.ProgressColumn("Visiteurs Actifs",format="localized",min_value=0,max_value=max(yearMonth_agg['activeUsers'])),
         "returningUsersRate": st.column_config.NumberColumn("% Retour",format="percent",min_value=0,max_value=1),
         "newUsersRate": st.column_config.NumberColumn("% Nouveaux",format="percent",min_value=0,max_value=1),
         "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0),
@@ -226,7 +226,7 @@ with tab2:
         "Sessions_vs_LY": st.column_config.NumberColumn("Sessions vs LY", format="percent",min_value=0,max_value=1),
         "engagedSessions_vs_LY": st.column_config.NumberColumn("Engagées vs LY",format="percent",min_value=0,max_value=1),
         "bounces_vs_LY": st.column_config.NumberColumn("Bounces vs LY",help="% of users exiting website as soon as landing",format="percent",min_value=0,max_value=1),
-        "activeUsers_vs_LY": st.column_config.NumberColumn("Users vs LY",format="percent",min_value=0,max_value=1),
+        "activeUsers_vs_LY": st.column_config.NumberColumn("Visiteurs vs LY",format="percent",min_value=0,max_value=1),
         "returningUsers_vs_LY": st.column_config.NumberColumn("Retour vs LY",format="percent",min_value=0,max_value=1),
         "newUsers_vs_LY": st.column_config.NumberColumn("Nouveaux vs LY",format="percent",min_value=0,max_value=1),
     })
@@ -242,7 +242,7 @@ with tab2:
     st.dataframe(countries_table[0:top_results],
                 column_config={
             "country": st.column_config.TextColumn("Pays"),
-            "activeUsers": st.column_config.ProgressColumn("Users Actifs",format="localized",min_value=0,max_value=max(countries_table['activeUsers'][0:top_results])),
+            "activeUsers": st.column_config.ProgressColumn("Visiteurs Actifs",format="localized",min_value=0,max_value=max(countries_table['activeUsers'][0:top_results])),
             "engagedSessions": st.column_config.ProgressColumn("Sessions Engagées",format="localized",min_value=0,max_value=max(countries_table['engagedSessions'][0:top_results])),
             "averageSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(countries_table['averageSessionDuration'][0:top_results])),
             },)
@@ -253,7 +253,7 @@ with tab2:
     st.dataframe(landing_table[0:top_results],
                 column_config={
             "landingPage": st.column_config.TextColumn("Landing Page URL"),
-            "activeUsers": st.column_config.ProgressColumn("Users Actifs",format="localized",min_value=0,max_value=max(landing_table['activeUsers'][0:top_results])),
+            "activeUsers": st.column_config.ProgressColumn("Visiteurs Actifs",format="localized",min_value=0,max_value=max(landing_table['activeUsers'][0:top_results])),
             "engagedSessions": st.column_config.ProgressColumn("Sessions Engagées",format="localized",min_value=0,max_value=max(landing_table['engagedSessions'][0:top_results])),
             "averageSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(landing_table['averageSessionDuration'][0:top_results])),
             },)
@@ -264,7 +264,7 @@ with tab2:
     st.dataframe(pages_table[0:top_results],
                 column_config={
             "pagePath": st.column_config.TextColumn("Adresse Page URL"),
-            "activeUsers": st.column_config.ProgressColumn("Users Actifs",format="localized",min_value=0,max_value=max(pages_table['activeUsers'][0:top_results])),
+            "activeUsers": st.column_config.ProgressColumn("Visiteurs Actifs",format="localized",min_value=0,max_value=max(pages_table['activeUsers'][0:top_results])),
             "engagedSessions": st.column_config.ProgressColumn("Sessions Engagées",format="localized",min_value=0,max_value=max(pages_table['engagedSessions'][0:top_results])),
             "averageSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(pages_table['averageSessionDuration'][0:top_results])),
             },)
