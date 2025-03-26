@@ -1,6 +1,6 @@
 ## STREAMLIT APP
 import os
-import pages as pg
+# import pages as pg
 import dateutil
 from functions import *
 import pandas as pd
