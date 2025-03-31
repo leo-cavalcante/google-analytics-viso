@@ -136,26 +136,21 @@ def build_yearMonth(df_final):
     yearMonth_agg['activeUsers_vs_LY'] = (yearMonth_agg['activeUsers']/yearMonth_agg['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
     yearMonth_agg['newUsers_vs_LY'] = (yearMonth_agg['newUsers']/yearMonth_agg['newUsers_LY'] - 1).apply(lambda x: round(x, 3))
     yearMonth_agg['returningUsers_vs_LY'] = (yearMonth_agg['returningUsers']/yearMonth_agg['returningUsers_LY'] - 1).apply(lambda x: round(x, 3))
-    yearMonth_agg.drop(columns={'Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
     
-    yearMonth_agg['engagedSessionsRate'] = (yearMonth_agg['engagedSessions'] / yearMonth_agg['Sessions']).apply(lambda x: round(x, 3))
     yearMonth_agg['bounceRate'] = (yearMonth_agg['bounces'] / yearMonth_agg['Sessions']).apply(lambda x: round(x, 3))
+    
     yearMonth_agg['newUsersRate'] = (yearMonth_agg['newUsers'] / yearMonth_agg['activeUsers']).apply(lambda x: round(x, 3))
     yearMonth_agg['returningUsersRate'] = (yearMonth_agg['returningUsers'] / yearMonth_agg['activeUsers']).apply(lambda x: round(x, 3))
     
-    yearMonth_agg['bounceRate'] = (yearMonth_agg['bounces'] / yearMonth_agg['Sessions'])
-    yearMonth_agg['bounceRate_txt'] = yearMonth_agg['bounceRate'].map(lambda x: f"{x*100:0.0f}%")
-    yearMonth_agg['avgScreenViews'] = yearMonth_agg['screenPageViews'] / yearMonth_agg['Sessions']
-    yearMonth_agg['avgScreenViews'] = yearMonth_agg['avgScreenViews'].map('{:.1f}'.format) #.values.astype('str')
-    yearMonth_agg['avgSessionDuration'] = yearMonth_agg['SessionsDuration'] / yearMonth_agg['Sessions']
-    yearMonth_agg['avgSessionDuration'] = yearMonth_agg['avgSessionDuration'].map('{:.1f}'.format) #.values.astype('str')
-    yearMonth_agg.drop(columns=['screenPageViews','SessionsDuration'], inplace=True)
-    yearMonth_agg = yearMonth_agg.sort_values(by='yearMonth', ascending=False)
+    yearMonth_agg['engagedSessionsRate'] = (yearMonth_agg['engagedSessions'] / yearMonth_agg['Sessions']).apply(lambda x: round(x, 3))
+    yearMonth_agg['avgScreenViews'] = (yearMonth_agg['screenPageViews'] / yearMonth_agg['Sessions']).map('{:.1f}'.format)
+    yearMonth_agg['avgSessionDuration'] = (yearMonth_agg['SessionsDuration'] / yearMonth_agg['Sessions']).map('{:.1f}'.format)
+    
+    yearMonth_agg.drop(columns={'screenPageViews','SessionsDuration','Sessions_LY','engagedSessions_LY','bounces_LY','activeUsers_LY','newUsers_LY','returningUsers_LY'}, inplace=True)
     
     yearMonth_agg = yearMonth_agg[yearMonth_agg['Sessions']>0] # | yearMonth_agg['activeUsers']>0]
+    yearMonth_agg = yearMonth_agg.sort_values(by='yearMonth', ascending=False)
     yearMonth_agg.reset_index(inplace=True)
-    
-    # st.write(yearMonth_pivot)
     
     return yearMonth_agg
 
@@ -169,13 +164,13 @@ def build_channel(df_final):
     channel_total.reset_index(names=['yearMonth'], inplace=True)
     
     channel_df = pd.merge(channel_df, channel_total, on='yearMonth', how='left', suffixes=('','_total'))
-    channel_df['Percent'] = (channel_df['activeUsers']/channel_df['activeUsers_total']).apply(lambda x: round(100*x,0))
-    channel_df['Percent'] = channel_df['Percent'].apply(lambda x: f"{x:.0f}%".format() if x>5 else '').astype('str')
-    channel_df['activeUsers_label'] = channel_df['activeUsers'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
+    channel_df['Percent'] = (channel_df['activeUsers']/channel_df['activeUsers_total']).apply(lambda x: round(100*x,1))
+    channel_df['Percent'] = channel_df['Percent'].apply(lambda x: f"{x:.1f}%".format() if x>5 else '').astype('str')
+    channel_df['activeUsers_label'] = channel_df['activeUsers'].apply(lambda x: f"  ({x:.1f})".format() if x>100 else '').astype('str')
     channel_df['Label'] = channel_df['Percent'] + channel_df['activeUsers_label'] #.values.astype('str') + ')'
     channel_df['engagedSessions_Percent'] = (channel_df['engagedSessions']/channel_df['engagedSessions_total']).apply(lambda x: round(100*x,0))
-    channel_df['engagedSessions_Percent'] = channel_df['engagedSessions_Percent'].apply(lambda x: f"{x:.0f}%".format() if x>10 else '').astype('str')
-    channel_df['engagedSessions_Label'] = channel_df['engagedSessions'].apply(lambda x: f"  ({x:.0f})".format() if x>100 else '').astype('str')
+    channel_df['engagedSessions_Percent'] = channel_df['engagedSessions_Percent'].apply(lambda x: f"{x:.1f}%".format() if x>10 else '').astype('str')
+    channel_df['engagedSessions_Label'] = channel_df['engagedSessions'].apply(lambda x: f"  ({x:.1f})".format() if x>100 else '').astype('str')
     channel_df['Label_bis'] = channel_df['engagedSessions_Percent'] + channel_df['engagedSessions_Label'] #.values.astype('str') + ')'
     channel_df = channel_df.rename(columns={'yearMonth':'yearMonth','firstUserDefaultChannelGroup':'Channel', 'activeUsers':'activeUsers', 'engagedSessions':'engagedSessions'})
     
