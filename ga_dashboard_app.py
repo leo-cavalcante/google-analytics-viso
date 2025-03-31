@@ -1,10 +1,12 @@
 ## STREAMLIT APP
 import os
+# import pages as pg
 import dateutil
 from functions import *
 import pandas as pd
 import numpy as np
 import streamlit as st
+# from streamlit_navigation_bar import st_navbar
 from datetime import date
 import plotly_express as px
 import matplotlib.pyplot as plt
@@ -55,9 +57,8 @@ with intro2:
     st.header("Tableau de Bord | Marketing Digital", divider='rainbow')
 
 # FILTERS SIDEBAR -- PART 1
-st.sidebar.subheader("Filtres", divider='gray')
+st.sidebar.header("Filtres", divider='rainbow')
 activate_log = st.sidebar.toggle("Échelle Logarithmique")
-
 st.sidebar.divider()
 
 one_year = date.today() - dateutil.relativedelta.relativedelta(months=11)
@@ -116,7 +117,7 @@ comp_df = build_df_final(comp_df)
 country_filter = st.sidebar.multiselect("Pays:", options=output_df['country'].unique())
 firstUserDefaultChannelGroup_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=output_df['firstUserDefaultChannelGroup'].unique())
 st.sidebar.divider()
-top_results = st.sidebar.slider("Nombre de TOP résultats à afficher:", min_value=5, max_value=50, value=10, step=5)
+top_results = st.sidebar.slider("Nombre de résultats à afficher:", min_value=5, max_value=50, value=10, step=5)
 st.sidebar.divider()
 st.sidebar.button("Download Excel Output", on_click=export_to_excel(output_df))
 
@@ -134,7 +135,7 @@ with tab1:
     ## GRAPH 1 -- FUNNEL MARKETING
     st.subheader( 'Funnel Marketing Digital', divider='gray')
     funnel_df = build_funnel(df_final)
-    fig_funnel = px.funnel(funnel_df, x='Nombre', y='Étape', hover_data='Nombre', color='Type', log_x=activate_log,
+    fig_funnel = px.funnel(funnel_df, x='Nombre', y='Étape', hover_data='Nombre', color='Type', log_x=False, # log_x=activate_log,
                 color_discrete_map=color_discrete_map_type,)
     fig_funnel.update_layout(font=dict(size=16))
     fig_funnel.update_xaxes(visible=True, title=None)
@@ -146,10 +147,11 @@ with tab1:
     st.subheader(f'\nVisiteurs vs Sessions', divider='gray')
     minicol1, minicol2 = st.columns(2)
     with minicol1:
-        components.html("""<div style="text-align: center; color: #2279CF"> Nouveaux vs de Retour </div>""", height=24)
+        components.html("""<div style="text-align: center; color: #2279CF; font-size:20px; weight:bold"> Visiteurs: Nouveaux vs de Retour </div>""", height=30)
+        # components.html("""<div style="text-align: center; color: #2279CF"> Nouveaux vs de Retour </div>""", height=24)
     with minicol2:
-        components.html("""<div style="text-align: center; color: salmon"> Engagées vs Bounces </div>""", height=24)
-
+        components.html("""<div style="text-align: center; color: salmon; font-size:20px"> Sessions: Engagées vs Bounces </div>""", height=30)
+        # components.html("""<div style="text-align: center; color: salmon"> Engagées vs Bounces </div>""", height=24)
     
     yearMonth_agg = build_yearMonth(df_final)
     
@@ -160,30 +162,34 @@ with tab1:
     yearMonth_pivot = yearMonth_pivot.melt(id_vars='yearMonth', value_vars=['Visiteurs Nouveaux','Visiteurs de Retour','Sessions Engagées','Bounces'], var_name="SubType", value_name="Nombre")
     yearMonth_pivot['Type'] = yearMonth_pivot['SubType'].map(lambda x: 'Visiteurs' if x[0:8]=='Visiteur' else 'Prospects' if x[0:8]=='Prospect' else 'Sessions')
     
-    fig_area = px.area(yearMonth_pivot, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type",
+    fig_area = px.area(yearMonth_pivot, x='yearMonth', y="Nombre", text="Nombre", color="SubType", facet_row="Type", # log_y=activate_log,
                       labels={'yearMonth': 'Année - Mois', 'Nombre': 'Nombre', 'Type': 'Utilisateur ou Séance'},)
-    fig_area.update_layout(font=dict(size=14),
+    fig_area.update_layout(font=dict(size=16),
                           legend=dict(bgcolor='rgba(0,0,0,0)',title=None,yanchor="top",y=1.1,xanchor="left",x=0),
                           xaxis=dict(autorange="reversed"),
                           paper_bgcolor=None)
     fig_area.update_xaxes(visible=True,title=None)
     fig_area.update_yaxes(visible=True,title=None)
-    fig_area.update_traces(textposition='top center', textfont=dict(size=14,color='#9C3587'))#,weight="bold"))   #,color='#9C3587'
+    fig_area.update_traces(textposition='top center', textfont=dict(size=16,color='#9C3587'))#,weight="bold"))   #,color='#9C3587'
     st.plotly_chart(fig_area, use_container_width=True, theme="streamlit", on_select="rerun")
     
     
     ## GRAPHS 3, 4
     st.subheader(f'\nAcquisition par Canal',divider='gray')
-    st.text("Canaux d'Acquisition de Visiteurs et des Sessions")
+    channel_col1, channel_col2 = st.columns(2)
+    with channel_col1:
+        components.html("""<div style="text-align: center; color: #2279CF; font-size:20px; weight:bold"> Visiteurs (Utilisateurs) </div>""", height=30)
+    with channel_col2:
+        components.html("""<div style="text-align: center; color: salmon; font-size:20px"> Sessions (Visites) </div>""", height=30)
     
     channel_unpivot = build_channel(df_final)
     
-    fig_stacked = px.histogram(channel_unpivot, log_x=activate_log, y="yearMonth", x="Nombre", barmode='stack', orientation='h', barnorm='fraction', text_auto='.1%', #, text_auto='.0%',        # log_x=True,    #, nbins=len(channel_unpivot['yearMonth'].unique())
-                               color='Channel', color_discrete_map=color_discrete_map_channels, height=1000, facet_row="Type", facet_row_spacing=0)          #.apply("{:1f}%".format()))
+    fig_stacked = px.histogram(channel_unpivot, log_x=activate_log, y="yearMonth", x="Nombre", barmode='stack', orientation='h', barnorm='fraction', text_auto='.2%', #, text_auto='.0%',        # log_x=True,    #, nbins=len(channel_unpivot['yearMonth'].unique())
+                               color='Channel', color_discrete_map=color_discrete_map_channels, height=1000, facet_col="Type", facet_row_spacing=0)          #.apply("{:1f}%".format()))
     fig_stacked.update_layout(font=dict(size=14),
                             # title={"text": "Canaux d'Acquisition d'Users et des Sessions", "x": 0},
                             yaxis = dict(title = "Année Mois", tickfont=dict(size=14), tickformat = "%Y-%m %b", categoryorder="array", categoryarray=yearmonth_order), #, tickformat = ".0%" , ticksuffix="%", categoryorder='array', categoryarray=category_order_channels
-                            xaxis = dict(autorange=True, tickfont=dict(size=14), tickformat = ".1%", categoryorder="array", categoryarray=category_order_channels),  #, categoryorder='array', categoryarray=category_order_channels
+                            xaxis = dict(autorange=True, tickfont=dict(size=14), tickformat = ".2%", categoryorder="array", categoryarray=category_order_channels),  #, categoryorder='array', categoryarray=category_order_channels
                             legend = dict(bgcolor='rgba(0,0,0,0)',title='Canal',yanchor="bottom",y=-0.25,xanchor="left",x=0))
     fig_stacked.update_coloraxes(colorbar_tickmode='array', colorbar_tickvals=category_order_channels)
     fig_stacked.update_yaxes(visible=True, title=None, type='category', categoryorder="category ascending", categoryarray=category_order_channels,tickformat='%Y-%m %b')   # uniformtext_mode='show')
