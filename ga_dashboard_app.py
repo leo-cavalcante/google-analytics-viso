@@ -28,11 +28,11 @@ def upload_data():
     ## STREAMLIT APP - MAIN STRUCTURE
     st.set_page_config(layout="wide", initial_sidebar_state='auto', page_title='VISO MKT Digital', page_icon='images/viso-logo.svg')   # Use the full page instead of a narrow central column
     
-    intro1, intro2 = st.columns([0.2, 0.8])
+    intro1, intro2 = st.columns([0.8, 0.2])
     with intro1:
-        st.image('images/viso-logo.svg')
-    with intro2:
         st.header("Tableau de Bord | Marketing Digital", divider='rainbow')
+    with intro2:
+        st.image('images/viso-logo.svg')
 
     # FILTERS SIDEBAR -- PART 1
     st.sidebar.header("Filtres", divider='rainbow')
