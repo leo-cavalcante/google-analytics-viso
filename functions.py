@@ -1,4 +1,5 @@
 ## SUPPORT FUNCTIONS FOR PROPER RUNNING OF STREAMLIT APP
+import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,20 +9,27 @@ from google.analytics.data_v1beta.types import OrderBy
 from google.analytics.data_v1beta.types import DateRange
 from google.analytics.data_v1beta.types import Dimension
 from google.analytics.data_v1beta.types import RunReportRequest 
-# from google.analytics.data_v1beta import BetaAnalyticsDataClient
 
-channels_map={"Unassigned"   : "1", "Paid Search"       : "2",
-            "Email"         : "3" , "Referral"        :"4",
-            "Organic Shopping":"5", "Organic Social"  :"6",
-            "Direct"          :"7", "Organic Search": "8"}
+channels_map = {"Unassigned"    :"1", "Paid Search"   :"2",
+              "Organic Shopping":"3", "Organic Social":"4",
+              "Email"           :"5", "Referral"      :"6",
+              "Direct"          :"7", "Organic Search":"8"}
 
-def request_ga_data(property_id, start_date_input, end_date_input):
-    return RunReportRequest(
+def initialize_state():
+    for q in ["channel_filter", "date_filter", "country_filter"]:
+        if f"{q}" not in st.session_state:
+            st.session_state[f"{q}"] = set()
+    if "top_results" not in st.session_state:
+        st.session_state.top_results = 50
+    
+    if "counter" not in st.session_state:
+        st.session_state.counter = 0
+        
+def request_ga_data(_client, property_id, start_date_input, end_date_input, events_df):
+    request = RunReportRequest(
             property='properties/'+property_id,
             dimensions=[Dimension(name="yearMonth"), #Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
                         Dimension(name="country"), # Dimension(name="sessionSourceMedium")], # Dimension(name="sessionMedium"), # Dimension(name="defaultChannelGroup")],       # NOT POSSIBLE TO CALCULATE NEW VISITORS
-                        # Dimension(name="landingPage"),
-                        # Dimension(name="pagePath"),],
                         Dimension(name="firstUserDefaultChannelGroup"),],
             metrics=[Metric(name="activeUsers"),
                      Metric(name="newUsers"),
@@ -32,11 +40,20 @@ def request_ga_data(property_id, start_date_input, end_date_input):
             order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), #OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
                         OrderBy(dimension = {'dimension_name': 'country'}),
                         OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup',}),],
-            date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
-        )
+            date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],)
+    output_df = format_report(_client, request)
+    output_df['country'] = output_df['country'].str.replace('(not set)', 'INCONNU')
+    
+    # output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup', 'pagePath'], suffixes=('','_event'))
+    output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup'], suffixes=('','_event'))
+    output_df['returningUsers'] = output_df['activeUsers'] - output_df['newUsers']
+    output_df['bounces'] = output_df['Sessions'] - output_df['engagedSessions']
+    output_df['SessionsDuration'] = output_df['averageSessionDuration'] * output_df['engagedSessions']
+    
+    return output_df
 
-def request_ga_key_events(property_id, start_date_input, end_date_input):
-    return RunReportRequest(
+def request_ga_key_events(_client, property_id, start_date_input, end_date_input):
+    request_events = RunReportRequest(
             property='properties/'+property_id,
             dimensions=[Dimension(name="yearMonth"), #Dimension(name="year"), Dimension(name="month"), # Dimension(name="week"), # Dimension(name="date"),
                         Dimension(name="country"), # Dimension(name="sessionSourceMedium")], # Dimension(name="sessionMedium"), # Dimension(name="defaultChannelGroup")],       # NOT POSSIBLE TO CALCULATE NEW VISITORS
@@ -46,8 +63,25 @@ def request_ga_key_events(property_id, start_date_input, end_date_input):
             order_bys = [OrderBy(dimension = {'dimension_name': 'yearMonth'}), #OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}), # OrderBy(dimension = {'dimension_name': 'year'}), OrderBy(dimension = {'dimension_name': 'month'}),
                         OrderBy(dimension = {'dimension_name': 'country'}),
                         OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup'})],
-            date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],
-        )
+            date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],)
+    events_df = format_report(_client, request_events)
+
+    events_df = pd.pivot_table(events_df, index=['yearMonth', 'country', 'firstUserDefaultChannelGroup'],
+                       columns=['eventName'], values='keyEvents', aggfunc="sum")
+    events_df = events_df.fillna(0).reset_index()
+    
+    events_df['download'] = [0] * len(events_df.index)
+    if 'téléchargement_catalogue_sign' in events_df.columns:
+        events_df['download'] += events_df['téléchargement_catalogue_sign']
+        events_df.drop(columns='téléchargement_catalogue_sign',inplace=True)
+    if 'télécharger_catalogue_chain' in events_df.columns:
+        events_df['download'] += events_df['télécharger_catalogue_chain']
+        events_df.drop(columns='télécharger_catalogue_chain',inplace=True)
+    if 'télécharger_catalogue_storage' in events_df.columns:
+        events_df['download'] += events_df['télécharger_catalogue_storage']
+        events_df.drop(columns={'télécharger_catalogue_storage'},inplace=True)
+    
+    return events_df
 
 #  Format Report - run_report method
 def format_report(client, request):
@@ -74,26 +108,25 @@ def format_report(client, request):
     output.reset_index(inplace=True)
     return output
 
-def rename_cols_df(df_final):
-    df_final = df_final.rename(columns={'engagedSessions':'Sessions Engagées', 'bounces':'Bounces',
+def rename_cols_df(df):
+    df = df.rename(columns={'engagedSessions':'Sessions Engagées', 'Bounces':'Sessions Bounces', 'bounces':'Sessions Bounces',
                                'returningUsers':'Visiteurs de Retour', 'newUsers':'Visiteurs Nouveaux',
                                'downloads':'Prospects Catalogue','demande_contact_realisee':'Prospects Formulaire'},)
-                    #   inplace=False)
-    return df_final
+    return df
 
 def build_df_final(output_df):
     df_final = output_df.copy()
     output_df=output_df.fillna(0)
     
     # Rectifying data type
-    df_final['activeUsers'] = df_final['activeUsers'].values.astype('int')
-    df_final['newUsers'] = df_final['newUsers'].values.astype('int')
 
     # Creating new & deleting avg columns on dataframe
     df_final['yearMonth'] = pd.to_datetime(df_final['yearMonth'], format='%Y%m')
     df_final['yearMonth'] = df_final['yearMonth'].dt.strftime('%Y-%m %b')
-    df_final['activeUsers'] = df_final['activeUsers'].astype('int') 
-    df_final['engagedSessions'] = df_final['engagedSessions'].astype('int')
+    df_final['newUsers'] = df_final['newUsers'].values.astype('int')
+    df_final['activeUsers'] = df_final['activeUsers'].values.astype('int')
+    # df_final['activeUsers'] = df_final['activeUsers'].astype('int') 
+    df_final['engagedSessions'] = df_final['engagedSessions'].values.astype('int')
     
     # df_final.drop(columns={'year', 'month'})
     df_final.sort_values('yearMonth', ascending=False, inplace=True)
@@ -103,8 +136,7 @@ def build_df_final(output_df):
 # FOR GRAPH 1
 def build_funnel(df_final):
     funnel_df = df_final[['screenPageViews', 'Sessions', 'engagedSessions','activeUsers', 'newUsers', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
-    # funnel_df = df_final[['screenPageViews', 'Sessions', 'Sessions Engagées','Visiteurs Actifs', 'Visiteurs Nouveaux', 'returningUsers', 'interet_par_les_catalogues', 'download', 'demande_contact_realisee']].sum()#agg('sum')
-    funnel_df = funnel_df.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Visiteurs Actifs',
+    funnel_df = funnel_df.rename({'screenPageViews':'Pages Vues', 'Sessions':'Sessions', 'activeUsers':'Visiteurs',
                                     'engagedSessions':'Sessions Engagées', 'newUsers':'Visiteurs Nouveaux', 'returningUsers':'Visiteurs de Retour',
                                     'interet_par_les_catalogues':'Prospects Vues Catalogue', 'download':'Prospects Catalogue', 'demande_contact_realisee':'Prospects Formulaire'})
     funnel_df = funnel_df.reset_index().rename(columns={0:'Nombre', 'index':'Étape'})
@@ -112,8 +144,7 @@ def build_funnel(df_final):
     funnel_df = funnel_df.set_index('Étape')
     funnel_df = funnel_df.rename(index={'Prospects Vues Catalogue':'Vues Catalogue','Prospects Catalogue':'Prospects Catalogue','Prospects Formulaire':'Prospects Formulaire'})
     funnel_df['Nombre'] = funnel_df['Nombre'].values.astype('int')
-    # st.write(funnel_df['Nombre'].values.type)
-    funnel_df['Nombre'] = funnel_df['Nombre'].map(lambda x: round(x,-2) if x>10000 else round(x,-1) if x>100 else round(x,0))
+    funnel_df['Nombre'] = funnel_df['Nombre'].map(lambda x: round(x,-2) if x>10000 else round(x,0) if x>100 else round(x,0))
     funnel_df = funnel_df.reset_index()
     # funnel_df = funnel_df.loc[~funnel_df['Nombre']==0]
     return funnel_df
@@ -130,7 +161,7 @@ def build_yearMonth(df_final):
                                                         download=('download', 'sum'),                                               download_LY=('download_LY', 'sum'),
                                                         demande_contact_realisee=('demande_contact_realisee', 'sum'))               #demande_contact_realisee_LY=('demande_contact_realisee_LY', 'sum')
     
-    yearMonth_agg['Sessions_vs_LY'] = ((yearMonth_agg['Sessions']/yearMonth_agg['Sessions_LY']) - 1).apply(lambda x: round(x, 3))
+    yearMonth_agg['Sessions_vs_LY'] = (yearMonth_agg['Sessions']/yearMonth_agg['Sessions_LY'] - 1)
     yearMonth_agg['engagedSessions_vs_LY'] = (yearMonth_agg['engagedSessions']/yearMonth_agg['engagedSessions_LY'] - 1).apply(lambda x: round(x, 3))
     yearMonth_agg['bounces_vs_LY'] = (yearMonth_agg['bounces']/yearMonth_agg['bounces_LY'] - 1).apply(lambda x: round(x, 3))
     yearMonth_agg['activeUsers_vs_LY'] = (yearMonth_agg['activeUsers']/yearMonth_agg['activeUsers_LY'] - 1).apply(lambda x: round(x, 3))
@@ -164,14 +195,6 @@ def build_channel(df_final):
     channel_total.reset_index(names=['yearMonth'], inplace=True)
     
     channel_df = pd.merge(channel_df, channel_total, on='yearMonth', how='left', suffixes=('','_total'))
-    channel_df['Percent'] = (channel_df['activeUsers']/channel_df['activeUsers_total']).apply(lambda x: round(100*x,1))
-    channel_df['Percent'] = channel_df['Percent'].apply(lambda x: f"{x:.1f}%".format() if x>5 else '').astype('str')
-    channel_df['activeUsers_label'] = channel_df['activeUsers'].apply(lambda x: f"  ({x:.1f})".format() if x>100 else '').astype('str')
-    channel_df['Label'] = channel_df['Percent'] + channel_df['activeUsers_label'] #.values.astype('str') + ')'
-    channel_df['engagedSessions_Percent'] = (channel_df['engagedSessions']/channel_df['engagedSessions_total']).apply(lambda x: round(100*x,0))
-    channel_df['engagedSessions_Percent'] = channel_df['engagedSessions_Percent'].apply(lambda x: f"{x:.1f}%".format() if x>10 else '').astype('str')
-    channel_df['engagedSessions_Label'] = channel_df['engagedSessions'].apply(lambda x: f"  ({x:.1f})".format() if x>100 else '').astype('str')
-    channel_df['Label_bis'] = channel_df['engagedSessions_Percent'] + channel_df['engagedSessions_Label'] #.values.astype('str') + ')'
     channel_df = channel_df.rename(columns={'yearMonth':'yearMonth','firstUserDefaultChannelGroup':'Channel', 'activeUsers':'activeUsers', 'engagedSessions':'engagedSessions'})
     
     channel_pivot = pd.pivot_table(channel_df, index=['yearMonth', 'Channel'],
@@ -180,82 +203,84 @@ def build_channel(df_final):
     channel_unpivot = channel_pivot.melt(id_vars=['yearMonth','Channel'],
                                        value_vars=['activeUsers','engagedSessions'],
                                        var_name="SubType", value_name="Nombre")
-    channel_unpivot['Type'] = channel_unpivot['SubType'].map(lambda x: 'Users' if x[-5:]=='Users' else 'Sessions')
+    channel_unpivot['Type'] = channel_unpivot['SubType'].map(lambda x: 'Visiteurs' if x[-5:]=='Users' else 'Sessions' if x[-8:]=='Sessions' else 'Prospects')
     channel_unpivot['Channel_DEF'] = channel_unpivot['Channel'].map(lambda x: str(channels_map[x]) + '-' + str(x))
-    channel_unpivot = channel_unpivot.sort_values(by='Channel_DEF', ascending=True)
-    channel_unpivot.reset_index(inplace=True)
+    channel_unpivot = channel_unpivot[channel_unpivot['Type'] == 'Visiteurs']
+    channel_unpivot = channel_unpivot.groupby(['Channel_DEF', 'Channel','yearMonth', 'Type', 'SubType']).agg(Nombre=('Nombre', 'sum'))
+    channel_unpivot = channel_unpivot.reset_index(names=['Channel_DEF', 'Channel', 'yearMonth', 'Type', 'SubType'])
+    channel_unpivot = channel_unpivot.sort_values(by=['Channel_DEF','yearMonth','Nombre'], ascending=[True, False, True])
+    channel_unpivot['Nombre'] = channel_unpivot['Nombre'].apply(lambda x: round(x,0)).astype('int')
+    channel_unpivot.reset_index(drop=True, inplace=True)
     # st.write(channel_unpivot)
     
     return channel_unpivot
 
-def monthly_traffic_chart(output_df):
-    monthly_users_pivot = pd.pivot_table(output_df, 
-                                        columns=['sessionMedium'], 
-                                        index=['month'], 
-                                        values=['activeUsers'], 
-                                        aggfunc = 'sum',
-                                        fill_value=0).droplevel(0, axis=1)
-    return monthly_users_pivot
-
-def traffic_report(end_date_input, start_date_input, property_id, client, country_filter, firstUserDefaultChannelGroup_filter):        
-    landing_pages_request = RunReportRequest(
+def traffic_report(end_date_input, start_date_input, property_id, client):        
+    pages_request = RunReportRequest(
                 property='properties/'+property_id,
-                dimensions=[Dimension(name="country"),
+                dimensions=[Dimension(name="yearMonth"),
+                            Dimension(name="country"),
                             Dimension(name="landingPage"),
                             Dimension(name="pagePath"),
                             Dimension(name="firstUserDefaultChannelGroup")],
                 metrics=[Metric(name="activeUsers"),
                      Metric(name="Sessions"),
                      Metric(name="engagedSessions"),
+                     Metric(name="screenPageViews"),                    ## >> screen_view + page_view events
                      Metric(name="averageSessionDuration")],
                 order_bys = [OrderBy(metric = {'metric_name': 'activeUsers'}, desc = True)],
                 date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))]
     )
     
     # Produce Top pages output tables
-    table_requested = format_report(client, landing_pages_request)
-    
-    if country_filter:
-        table_requested = table_requested[table_requested['country'].isin(country_filter)]
-    
-    if firstUserDefaultChannelGroup_filter:
-        table_requested = table_requested[table_requested['firstUserDefaultChannelGroup'].isin(firstUserDefaultChannelGroup_filter)]
-    
+    table_requested = format_report(client, pages_request)
+    table_requested['country'] = table_requested['country'].str.replace('(not set)', 'INCONNU')
+    table_requested['yearMonth'] = pd.to_datetime(table_requested['yearMonth'], format='%Y%m')
+    table_requested['yearMonth'] = table_requested['yearMonth'].dt.strftime('%Y-%m %b')
     table_requested['activeUsers'] = table_requested['activeUsers'].astype('int') 
+    table_requested['Sessions'] = table_requested['Sessions'].astype('int') 
     table_requested['engagedSessions'] = table_requested['engagedSessions'].astype('int')
     table_requested['averageSessionDuration'] = table_requested['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
     table_requested['SessionsDuration'] = table_requested['Sessions'] * table_requested['averageSessionDuration'] # .apply(lambda x: round(x,0)).astype('float')
     table_requested.drop(columns=['averageSessionDuration'], inplace=True)
     
-    countries_table = table_requested.groupby('country').sum().sort_values('activeUsers', ascending=False).reset_index()
-    countries_table['averageSessionDuration'] = (countries_table['SessionsDuration']/countries_table['Sessions']).apply(lambda x: round(x,0))
-    countries_table.drop(columns=['SessionsDuration','Sessions'], inplace=True)
-    
-    landing_table = table_requested.groupby('landingPage').sum().sort_values('activeUsers', ascending=False).reset_index()
-    landing_table['averageSessionDuration'] = (landing_table['SessionsDuration']/landing_table['Sessions']).apply(lambda x: round(x,0))
-    landing_table.drop(columns=['SessionsDuration','Sessions'], inplace=True)
-    
-    pages_table = table_requested.groupby('pagePath').sum().sort_values('activeUsers', ascending=False).reset_index()
-    pages_table['averageSessionDuration'] = (pages_table['SessionsDuration']/pages_table['Sessions']).apply(lambda x: round(x,0))
-    pages_table.drop(columns=['SessionsDuration','Sessions'], inplace=True)
+    table_requested.reset_index(inplace=True)
+    pages_table = table_requested.groupby(['yearMonth','country','pagePath','firstUserDefaultChannelGroup']
+                                          ).agg(activeUsers=('activeUsers','sum'), Sessions=('Sessions','sum'), engagedSessions=('engagedSessions','sum'),
+                                                SessionsDuration=('SessionsDuration','sum'), screenPageViews=('screenPageViews','sum'),
+                                          ).sort_values('activeUsers', ascending=False
+                                          ).reset_index()
+    return pages_table
 
-    return landing_table, pages_table, countries_table
+def pages_table_transformation(pages_table):
+    pages_final = pages_table.groupby('pagePath').agg(activeUsers=('activeUsers','sum'), Sessions=('Sessions','sum'),
+                                                        engagedSessions=('engagedSessions','sum'), SessionsDuration=('SessionsDuration','sum'),
+                                                        screenPageViews=('screenPageViews','sum'),
+                                                ).sort_values('activeUsers', ascending=False
+                                                ).reset_index()
+    pages_final['product'] = pages_final['pagePath'].apply(lambda x: x.split('.')[0])
+    pages_final['product'] = pages_final['product'].apply(lambda x: x.split('/')[-1])
+    pages_final['product'] = pages_final['product'].apply(lambda x: x.replace('-',' ').replace('_',' ').replace(' de l a l','').replace(' d '," d'"))
+    pages_final['product'] = pages_final['product'].apply(lambda x: re.sub(r'[0-9]','',x))
+    pages_final['product'] = pages_final['product'].str.strip(' ')
+    pages_final['product'] = pages_final['product'].str.capitalize()
+    
+    pages_final['avgSessionDuration'] = (pages_final['SessionsDuration']/pages_final['Sessions']).apply(lambda x: round(x,0)).astype('int')
+    
+    return pages_final
 
-def color_background(value):
-    if value<-0.50 or value>0.5:
+def color_font(value):
+    if value<-10 or value>10:
         return f"color: white"
         
-    elif value<-0.01:
-        return f"color: darkred"
-        # return f"background-color: linear-gradient(90deg,#fa8072 {100}%, transparent {50}%);"
-        # return f"background-color: #fa8072, transparency:{-value*100};"
+    elif value<0:
+        return f"color: #4B4B4B"
         
-    elif value>0.01:
-        return f"color: darkgreen"
-        # return f"background: #green; opacity:{value/100};"
+    elif value>=0:
+        return f"color: #4B4B4B"
         
     else:
-        return f"color: gray"
+        return f"color: #4B4B4B"
 
 def color_rate(value):
     return f"color: #B0B0B0"
