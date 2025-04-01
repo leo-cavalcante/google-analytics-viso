@@ -14,16 +14,6 @@ channels_map = {"Unassigned"    :"1", "Paid Search"   :"2",
               "Organic Shopping":"3", "Organic Social":"4",
               "Email"           :"5", "Referral"      :"6",
               "Direct"          :"7", "Organic Search":"8"}
-
-def initialize_state():
-    for q in ["channel_filter", "date_filter", "country_filter"]:
-        if f"{q}" not in st.session_state:
-            st.session_state[f"{q}"] = set()
-    if "top_results" not in st.session_state:
-        st.session_state.top_results = 50
-    
-    if "counter" not in st.session_state:
-        st.session_state.counter = 0
         
 def request_ga_data(_client, property_id, start_date_input, end_date_input, events_df):
     request = RunReportRequest(
