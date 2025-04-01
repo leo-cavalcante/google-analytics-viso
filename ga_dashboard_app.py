@@ -62,14 +62,14 @@ def upload_data():
     return df_final, pages_table
     
 # FILTERS SIDEBAR -- PART 2
-def filter_applications(df_final, pages_table):
+def filter_applications(df_final, pages_final):
     if "channel_filter" not in st.session_state:
         channel_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=df_final['firstUserDefaultChannelGroup'].unique(), default=[])
     else:
         channel_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=df_final['firstUserDefaultChannelGroup'].unique(), default=st.session_state["channel_filter"])
     if channel_filter:
         df_final = df_final[df_final["firstUserDefaultChannelGroup"].isin(channel_filter)]
-        pages_table = pages_table[pages_table["firstUserDefaultChannelGroup"].isin(channel_filter)]
+        pages_final = pages_final[pages_final["firstUserDefaultChannelGroup"].isin(channel_filter)]
         
     country_df = df_final.groupby(by='country').agg(Visiteurs=('activeUsers','sum')).sort_values(by='Visiteurs', ascending=False).reset_index()
     country_list = country_df['country']
@@ -79,7 +79,7 @@ def filter_applications(df_final, pages_table):
         country_filter = st.sidebar.multiselect("Pays:", options=country_list, default=st.session_state["country_filter"])
     if country_filter:
         df_final = df_final[df_final["country"].isin(country_filter)]
-        pages_table = pages_table[pages_table["country"].isin(country_filter)]
+        pages_final = pages_final[pages_final["country"].isin(country_filter)]
     
     if "date_filter" not in st.session_state:
         date_filter = []
@@ -87,7 +87,7 @@ def filter_applications(df_final, pages_table):
         date_filter = st.session_state["date_filter"]
     if date_filter:
         df_final = df_final[df_final["yearMonth"].isin(date_filter)]
-        pages_table = pages_table[pages_table["yearMonth"].isin(date_filter)]
+        pages_final = pages_final[pages_final["yearMonth"].isin(date_filter)]
         
     if "top_results" not in st.session_state:
         top_results = st.sidebar.slider("Nombre de résultats à afficher:", min_value=5, max_value=100, value=20, step=5)
@@ -100,7 +100,7 @@ def filter_applications(df_final, pages_table):
     st.sidebar.divider()
     st.sidebar.button("Download Excel Output", on_click=export_to_excel(df_final))
     
-    return df_final, pages_table, top_results
+    return df_final, pages_final, top_results
 
 # APPLYING FILTERS TO DATAFRAME
 @st.cache_data
@@ -395,7 +395,5 @@ def main(df_final, pages_table, top_results):
 
 if __name__ == "__main__":
     df_final, pages_table = upload_data()
-    
-    df_final, pages_table, top_results = filter_applications(df_final, pages_table)
-    
-    main(df_final, pages_table, top_results)
+    df_final, pages_final, top_results = filter_applications(df_final, pages_table)
+    main(df_final, pages_final, top_results)
