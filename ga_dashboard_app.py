@@ -55,63 +55,65 @@ def upload_data():
     comp_df = request_data(client, property_id, start_date_comparison, end_date_comparison)
     comp_df['yearMonth'] = comp_df['yearMonth'].astype('int').apply(lambda x: x+100).astype('str')
     comp_df = build_df_final(comp_df)
-    df_final = pd.merge(output_df, comp_df, how='outer', on=['yearMonth','country','firstUserDefaultChannelGroup'], suffixes=('','_LY'))
-
-    # FILTERS SIDEBAR -- PART 2
-    if "channel_filter" not in st.session_state:
-        channel_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=output_df['firstUserDefaultChannelGroup'].unique(), default=[])
-    else:
-        channel_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=output_df['firstUserDefaultChannelGroup'].unique(), default=st.session_state["channel_filter"])        
-
-    country_df = output_df.groupby(by='country').agg(Visiteurs=('activeUsers','sum')).sort_values(by='Visiteurs', ascending=False).reset_index()
-    country_list = country_df['country']
     
+    df_final = pd.merge(output_df, comp_df, how='outer', on=['yearMonth','country','firstUserDefaultChannelGroup'], suffixes=('','_LY'))
+    pages_table = traffic_report(end_date_input, start_date_input, property_id, client)
+    
+    return df_final, pages_table
+    
+# FILTERS SIDEBAR -- PART 2
+def filter_applications(df_final, pages_table):
+    if "channel_filter" not in st.session_state:
+        channel_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=df_final['firstUserDefaultChannelGroup'].unique(), default=[])
+    else:
+        channel_filter = st.sidebar.multiselect("Canal d'Acquisition:", options=df_final['firstUserDefaultChannelGroup'].unique(), default=st.session_state["channel_filter"])
+    if channel_filter:
+        df_final = df_final[df_final["firstUserDefaultChannelGroup"].isin(channel_filter)]
+        pages_table = pages_table[pages_table["firstUserDefaultChannelGroup"].isin(channel_filter)]
+        
+    country_df = df_final.groupby(by='country').agg(Visiteurs=('activeUsers','sum')).sort_values(by='Visiteurs', ascending=False).reset_index()
+    country_list = country_df['country']
     if "country_filter" not in st.session_state:
-        country_filter = st.sidebar.multiselect("Pays:", options=country_list, default=country_list)
+        country_filter = st.sidebar.multiselect("Pays:", options=country_list, default=[])
     else:
         country_filter = st.sidebar.multiselect("Pays:", options=country_list, default=st.session_state["country_filter"])
+    if country_filter:
+        df_final = df_final[df_final["country"].isin(country_filter)]
+        pages_table = pages_table[pages_table["country"].isin(country_filter)]
     
     if "date_filter" not in st.session_state:
         date_filter = []
     else:
         date_filter = st.session_state["date_filter"]
+    if date_filter:
+        df_final = df_final[df_final["yearMonth"].isin(date_filter)]
+        pages_table = pages_table[pages_table["yearMonth"].isin(date_filter)]
         
     if "top_results" not in st.session_state:
         top_results = st.sidebar.slider("Nombre de résultats à afficher:", min_value=5, max_value=100, value=20, step=5)
     else:
         top_results = st.sidebar.slider("Nombre de résultats à afficher:", min_value=5, max_value=100, value=st.session_state["top_results"], step=5)
-        # top_results = st.session_state["top_results"]
+    
+    if "counter" not in st.session_state:
+        st.session_state.counter = 0
     
     st.sidebar.divider()
-    st.sidebar.button("Download Excel Output", on_click=export_to_excel(output_df))
+    st.sidebar.button("Download Excel Output", on_click=export_to_excel(df_final))
     
-    pages_table = traffic_report(end_date_input, start_date_input, property_id, client)
-    
-    return df_final, pages_table, country_filter, channel_filter, date_filter, top_results
+    return df_final, pages_table, top_results
 
 # APPLYING FILTERS TO DATAFRAME
 @st.cache_data
-# def build_all(df_final, end_date_input, start_date_input, property_id, _client, country_filter, channel_filter, date_filter):
-def build_all(df_final, pages_table, country_filter, channel_filter, date_filter):
-    if country_filter:
-        df_final = df_final[df_final["country"].isin(country_filter)]
-        pages_table = pages_table[pages_table["country"].isin(country_filter)]
-    if channel_filter:
-        df_final = df_final[df_final["firstUserDefaultChannelGroup"].isin(channel_filter)]
-        pages_table = pages_table[pages_table["firstUserDefaultChannelGroup"].isin(channel_filter)]
-    if date_filter:
-        df_final = df_final[df_final["yearMonth"].isin(date_filter)]
-        pages_table = pages_table[pages_table["yearMonth"].isin(date_filter)]
-    
+def build_all(df_final):
     yearMonth_agg = build_yearMonth(df_final)
     yearMonth_pivot = rename_cols_df(yearMonth_agg)
     funnel_df = build_funnel(df_final)
     channel_unpivot = build_channel(df_final)
 
-    return df_final, pages_table, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot #, landing_table, pages_table, countries_table
+    return df_final, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot #, landing_table, pages_table, countries_table
 
 # MAIN APP
-def main(df_final, pages_table, country_filter, channel_filter, date_filter, top_results): 
+def main(df_final, pages_table, top_results): 
     # GLOBAL VARIABLES
     # Plotly_Standard_Colors = ["rgb(31, 119, 180)","rgb(255, 127, 14)","rgb(44, 160, 44)","rgb(214, 39, 40)","rgb(148, 103, 189)","rgb(140, 86, 75)","rgb(227, 119, 194)","rgb(127, 127, 127)","rgb(188, 189, 34)","rgb(23, 190, 207)"]
     
@@ -138,7 +140,7 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
 
     category_order_channels=["1-Unassigned","2-Paid Search","3-Organic Shopping","4-Organic Social","5-Email","6-Referral","7-Direct","8-Organic Search"]
 
-    df_final, pages_table, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot = build_all(df_final, pages_table, country_filter, channel_filter, date_filter)
+    df_final, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot = build_all(df_final)
     
     # GRAPH 1 -- FUNNEL MARKETING
     st.subheader( 'Funnel Marketing Digital', divider='gray')
@@ -152,7 +154,7 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     st.markdown("""_* Attention : informations en vert sur le catalogue et formulaire sont existantes seulement depuis mi-mars 2025._""", unsafe_allow_html=True)
 
     ## TABLE 1
-    with st.expander("Comparaison versus l'Année Précédente", expanded=False):    
+    with st.expander("Comparaison versus l'Année Précédente", expanded=True):    
         # st.subheader(f"\nComparaison à l'Année Précédente")
         yearMonth_agg['Sessions_vs_LY'] = yearMonth_agg['Sessions_vs_LY'].apply(lambda x: x*100)
         yearMonth_agg['engagedSessions_vs_LY'] = yearMonth_agg['engagedSessions_vs_LY'].apply(lambda x: x*100)
@@ -161,7 +163,8 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
         yearMonth_agg['returningUsers_vs_LY'] = yearMonth_agg['returningUsers_vs_LY'].apply(lambda x: x*100)
         yearMonth_agg['newUsers_vs_LY'] = yearMonth_agg['newUsers_vs_LY'].apply(lambda x: x*100)
         cmap = plt.cm.get_cmap('coolwarm_r')
-        selected_yearMonth_vs_LY = st.dataframe(data=yearMonth_agg.style.background_gradient(cmap=cmap,vmin=-50,vmax=50,axis=None).applymap(color_font,
+        yearMonth_agg_evol = yearMonth_agg.copy()
+        selected_yearMonth_evol = st.dataframe(data=yearMonth_agg_evol.style.background_gradient(cmap=cmap,vmin=-50,vmax=50,axis=None).applymap(color_font,
                         subset=['Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY']), #.set_properties(**{'text-align': 'center'}).set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
                         height=None, hide_index=True, on_select="rerun",
                         column_order=['yearMonth','Sessions_vs_LY','engagedSessions_vs_LY','bounces_vs_LY','activeUsers_vs_LY','returningUsers_vs_LY','newUsers_vs_LY'],
@@ -174,9 +177,9 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
             "returningUsers_vs_LY": st.column_config.NumberColumn("Retour vs LY",format='%+2.1f%%',min_value=-1,max_value=1),
             "newUsers_vs_LY": st.column_config.NumberColumn("Nouveaux vs LY",format='%+2.1f%%',min_value=-1,max_value=1),
         })
-        if selected_yearMonth_vs_LY:
-            date_filter = list(set([yearMonth_agg['yearMonth'][x] for x in selected_yearMonth_vs_LY['selection']['rows']]))
-            st.session_state["date_filter"] = list(set([yearMonth_agg['yearMonth'][x] for x in selected_yearMonth_vs_LY['selection']['rows']]))
+        if selected_yearMonth_evol:
+            # date_filter = list(set([yearMonth_agg_evol['yearMonth'][x] for x in selected_yearMonth_evol['selection']['rows']]))
+            st.session_state["date_filter"] = list(set([yearMonth_agg_evol['yearMonth'][x] for x in selected_yearMonth_evol['selection']['rows']]))
 
     st.write("##")
 
@@ -187,7 +190,7 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
         components.html("""<div style="text-align: center; color: rgba(0,0,255,100); font-size:20px; weight:bold"> Visiteurs: Nouveaux vs de Retour </div>""", height=30)
     with minicol2:
         components.html("""<div style="text-align: center; color: rgba(215,48,39,100); font-size:20px"> Sessions: Engagées vs Bounces </div>""", height=30)
-
+    
     yearMonth_pivot= pd.pivot_table(yearMonth_pivot.sort_values(by='yearMonth', ascending=False), values=['Sessions Engagées','Sessions Bounces','Visiteurs Nouveaux','Visiteurs de Retour'],
                                     index=['yearMonth'], aggfunc='sum').reset_index()
     yearMonth_pivot = yearMonth_pivot.melt(id_vars='yearMonth', value_vars=['Visiteurs Nouveaux','Visiteurs de Retour','Sessions Engagées','Sessions Bounces'], var_name="SubType", value_name="Nombre")
@@ -233,10 +236,11 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     st.plotly_chart(fig_area, use_container_width=True, theme="streamlit", on_select="rerun")
 
     ## TABLE 2
-    with st.expander("Principaux KPIs de Performance", expanded=False):
+    with st.expander("Principaux KPIs de Performance", expanded=True):
         # st.subheader(f'\nPrincipaux KPIs de Performance', divider='gray')
         # yearMonth_agg = yearMonth_agg.set_index('yearMonth')
-        selected_yearMonth = st.dataframe(data=yearMonth_agg.style.applymap(color_rate, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate']),
+        yearMonth_agg_KPIs = yearMonth_agg.copy()
+        selected_yearMonth_KPIs = st.dataframe(data=yearMonth_agg_KPIs.style.applymap(color_rate, subset=['bounceRate','engagedSessionsRate','newUsersRate','returningUsersRate']),
                         height=None, hide_index=True, on_select="rerun", 
                         column_order=['yearMonth','Sessions','engagedSessionsRate','bounceRate','activeUsers','returningUsersRate','newUsersRate','avgScreenViews','avgSessionDuration'],
                     column_config={
@@ -250,14 +254,14 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
             "avgScreenViews": st.column_config.NumberColumn("Moy. Pages Vues",format="localized",min_value=0),
             "avgSessionDuration": st.column_config.NumberColumn("Durée Moy. Session",format="localized",min_value=0),
         })
-        if selected_yearMonth:
-            date_filter = list(set([yearMonth_agg['yearMonth'][x] for x in selected_yearMonth['selection']['rows']]))
-            st.session_state["date_filter"] = list(set([yearMonth_agg['yearMonth'][x] for x in selected_yearMonth['selection']['rows']]))
+        if selected_yearMonth_KPIs:
+            # date_filter = list(set([yearMonth_agg['yearMonth'][x] for x in selected_yearMonth_KPIs['selection']['rows']]))
+            st.session_state["date_filter"] = list(set([yearMonth_agg['yearMonth'][x] for x in selected_yearMonth_KPIs['selection']['rows']]))
 
     st.write("##")
     
     ## GRAPHS 3, 4
-    st.subheader(f'\nAcquisition de Visiteurs par Canal', divider='gray')
+    st.subheader(f'Acquisition de Visiteurs par Canal', divider='gray')
     activate_log = st.toggle("Échelle Logarithmique", value=True)
 
     channel_unpivot['Label'] = channel_unpivot['Nombre'].apply(lambda x: f'{x:.0f}' if x>0 else '')
@@ -275,21 +279,19 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     test = channel_unpivot_agg.pivot_table(columns='yearMonth', values='Visiteurs', aggfunc='sum') #.sum(axis=0).reset_index()
 
     st.dataframe(test, column_order=yearmonth_order, hide_index=True,
-                 column_config = {'2025-03 Mar': {'alignment': 'center'},
-                                  '2025-02 Feb': {'alignment': 'center'},
-                                  '2025-01 Jan': {'alignment': 'center'},
-                                  '2024-12 Dec': {'alignment': 'center'},
-                                  '2024-11 Nov': {'alignment': 'center'},
-                                  '2024-10 Oct': {'alignment': 'center'},
-                                  '2024-09 Sep': {'alignment': 'center'},
-                                  '2024-08 Aug': {'alignment': 'center'},
-                                  '2024-07 Jul': {'alignment': 'center'},
-                                  '2024-06 Jun': {'alignment': 'center'},
-                                  '2024-05 May': {'alignment': 'center'},
-                                  '2024-04 Apr': {'alignment': 'center'},
-                                  '2024-03 Mar': {'alignment': 'center'},
-                                  '2024-02 Feb': {'alignment': 'center'},
-                                  '2024-01 Jan': {'alignment': 'center'},})
+                 column_config = {'2025-12 Dec': {'alignment': 'center'}, '2024-12 Dec': {'alignment': 'center'}, '2023-12 Dec': {'alignment': 'center'}, '2022-12 Dec': {'alignment': 'center'}, '2021-12 Dec': {'alignment': 'center'}, '2020-12 Dec': {'alignment': 'center'},
+                                  '2025-11 Nov': {'alignment': 'center'}, '2024-11 Nov': {'alignment': 'center'}, '2023-11 Nov': {'alignment': 'center'}, '2022-11 Nov': {'alignment': 'center'}, '2021-11 Nov': {'alignment': 'center'}, '2020-11 Nov': {'alignment': 'center'},
+                                  '2025-10 Oct': {'alignment': 'center'}, '2024-10 Oct': {'alignment': 'center'}, '2023-10 Oct': {'alignment': 'center'}, '2022-10 Oct': {'alignment': 'center'}, '2021-10 Oct': {'alignment': 'center'}, '2020-10 Oct': {'alignment': 'center'},
+                                  '2025-09 Sep': {'alignment': 'center'}, '2024-09 Sep': {'alignment': 'center'}, '2023-09 Sep': {'alignment': 'center'}, '2022-09 Sep': {'alignment': 'center'}, '2021-09 Sep': {'alignment': 'center'}, '2020-09 Sep': {'alignment': 'center'},
+                                  '2025-08 Aug': {'alignment': 'center'}, '2024-08 Aug': {'alignment': 'center'}, '2023-08 Aug': {'alignment': 'center'}, '2022-08 Aug': {'alignment': 'center'}, '2021-08 Aug': {'alignment': 'center'}, '2020-08 Aug': {'alignment': 'center'},
+                                  '2025-07 Jul': {'alignment': 'center'}, '2024-07 Jul': {'alignment': 'center'}, '2023-07 Jul': {'alignment': 'center'}, '2022-07 Jul': {'alignment': 'center'}, '2021-07 Jul': {'alignment': 'center'}, '2020-07 Jul': {'alignment': 'center'},
+                                  '2025-06 Jun': {'alignment': 'center'}, '2024-06 Jun': {'alignment': 'center'}, '2023-06 Jun': {'alignment': 'center'}, '2022-06 Jun': {'alignment': 'center'}, '2021-06 Jun': {'alignment': 'center'}, '2020-06 Jun': {'alignment': 'center'},
+                                  '2025-05 May': {'alignment': 'center'}, '2024-05 May': {'alignment': 'center'}, '2023-05 May': {'alignment': 'center'}, '2022-05 May': {'alignment': 'center'}, '2021-05 May': {'alignment': 'center'}, '2020-05 May': {'alignment': 'center'},
+                                  '2025-04 Apr': {'alignment': 'center'}, '2024-04 Apr': {'alignment': 'center'}, '2023-04 Apr': {'alignment': 'center'}, '2022-04 Apr': {'alignment': 'center'}, '2021-04 Apr': {'alignment': 'center'}, '2020-04 Apr': {'alignment': 'center'},
+                                  '2025-03 Mar': {'alignment': 'center'}, '2024-03 Mar': {'alignment': 'center'}, '2023-03 Mar': {'alignment': 'center'}, '2022-03 Mar': {'alignment': 'center'}, '2021-03 Mar': {'alignment': 'center'}, '2020-03 Mar': {'alignment': 'center'},
+                                  '2025-02 Feb': {'alignment': 'center'}, '2024-02 Feb': {'alignment': 'center'}, '2023-02 Feb': {'alignment': 'center'}, '2022-02 Feb': {'alignment': 'center'}, '2021-02 Feb': {'alignment': 'center'}, '2020-02 Feb': {'alignment': 'center'},
+                                  '2025-01 Jan': {'alignment': 'center'}, '2024-01 Jan': {'alignment': 'center'}, '2023-01 Jan': {'alignment': 'center'}, '2022-01 Jan': {'alignment': 'center'}, '2021-01 Jan': {'alignment': 'center'}, '2020-01 Jan': {'alignment': 'center'},
+                                  })
     
     fig_area_channel = px.area(channel_unpivot, x='yearMonth', y="Nombre", text="Label", orientation='v',
                                 log_y=activate_log, color='Channel', color_discrete_map=color_discrete_map_channels, 
@@ -303,7 +305,12 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     fig_area_channel.update_xaxes(visible=False, autorange=True, title=None, type="category", categoryorder="category descending", categoryarray=yearmonth_order)
     fig_area_channel.update_yaxes(visible=False, autorange=True, title=None, categoryorder="array", categoryarray=category_order_channels)
     fig_area_channel.update_traces(textposition='top right', textfont=dict(size=14,color='#000000'))#,weight="bold"))   #,color='#9C3587'
-    st.plotly_chart(fig_area_channel, use_container_width=True, theme="streamlit", on_select="rerun")
+    selected_yearMonth_channel_area = st.plotly_chart(fig_area_channel, use_container_width=True, theme="streamlit", on_select="rerun")
+    if selected_yearMonth_channel_area:
+        # channel_filter = list(set([x["legendgroup"] for x in selected_stacked_column['selection']['points']]))
+        st.session_state["channel_filter"] = list(set([x["legendgroup"] for x in selected_yearMonth_channel_area['selection']['points']]))
+        # st.write(st.session_state["channel_filter"])
+    
 
     fig_stacked = px.histogram(channel_unpivot, x="yearMonth", y="Nombre", barmode='stack', orientation='v', barnorm='fraction', text_auto='.2%',  opacity=0.33,#, text_auto='.0%',        # log_x=True,    #, nbins=len(channel_unpivot['yearMonth'].unique())
                             log_y=activate_log, color='Channel', color_discrete_map=color_discrete_map_channels,
@@ -318,12 +325,10 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     fig_stacked.update_xaxes(visible=False, autorange=True, title=None, type='category', categoryorder="category descending", categoryarray=category_order_channels, tickformat='%Y-%m %b')   # uniformtext_mode='show')
     fig_stacked.update_yaxes(visible=False, autorange=True, title=None, categoryorder="array", categoryarray=category_order_channels)
     fig_stacked.update_traces(textposition='inside', textfont=dict(size=14,color='#000000'))#,weight="bold"))   #,color='#9C3587'
-    selected_stacked_column = st.plotly_chart(fig_stacked, use_container_width=True, theme="streamlit", on_select="rerun")
-
-    if selected_stacked_column:
-        channel_filter = list(set([x["legendgroup"] for x in selected_stacked_column['selection']['points']]))
-        st.session_state["channel_filter"] = list(set([x["legendgroup"] for x in selected_stacked_column['selection']['points']]))
-    
+    selected_yearMonth_channel_stacked = st.plotly_chart(fig_stacked, use_container_width=True, theme="streamlit", on_select="rerun")
+    if selected_yearMonth_channel_stacked:
+        # channel_filter = list(set([x["legendgroup"] for x in selected_yearMonth_channel_stacked['selection']['points']]))
+        st.session_state["channel_filter"] = list(set([x["legendgroup"] for x in selected_yearMonth_channel_stacked['selection']['points']]))
     st.write("##")
         
     ## TABLE 3
@@ -337,7 +342,8 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     st.subheader(f'\nTop {str(top_results_label)} Pays', divider='gray')
     countries_table.index += 1
     if len(countries_table) > 0:
-        st.dataframe(countries_table[0:top_results_label],column_order=["country", "Visiteurs", "engagedSessions", "avgSessionDuration",'avgPageViews'], height=37*top_results_label,
+        selected_countries = st.dataframe(countries_table[0:top_results_label],column_order=["country", "Visiteurs", "engagedSessions", "avgSessionDuration",'avgPageViews'], height=37*top_results_label,
+                    on_select="rerun",
                     column_config={
                 "country": st.column_config.TextColumn("Pays"),
                 "Visiteurs": st.column_config.ProgressColumn("Visiteurs",format="localized",min_value=0,max_value=max(countries_table['Visiteurs'][0:top_results_label])),
@@ -345,16 +351,21 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
                 "avgSessionDuration": st.column_config.ProgressColumn("Durée Moy. Session (s)",format="localized",min_value=0,max_value=max(countries_table['avgSessionDuration'][0:top_results_label])),
                 "avgPageViews": st.column_config.ProgressColumn("Moy. Pages Vues",format="localized",min_value=0,max_value=max(countries_table['avgPageViews'][0:top_results_label])),
                 },)
+    if selected_countries:
+        # country_filter = list(set([countries_table['country'][x] for x in selected_countries['selection']['rows']]))
+        # st.write(list(set([countries_table['country'][x] for x in selected_countries['selection']['rows']])))
+        st.session_state["country_filter"] = list(set([countries_table['country'][x] for x in selected_countries['selection']['rows']]))
+        # st.rerun()
         
 
     ## TABLE 4
+    chosen_variable = 'Produits Vus'
+    st.subheader(f'\nTop {str(top_results)} {chosen_variable}', divider='gray')
     pages_final = pages_table_transformation(pages_table)
     pages_exclues = list(set([x for x in pages_final['pagePath'] if 'produit' in x or 'products' in x or '/content/' in x or 'catalog' in x or 'contact' in x or 'connexion' in x or '/private/' in x]))
     pages_exclues = pages_exclues + ['/fr/', '/en/', '/nl/', '/fr/recherche', '/fr/6-equipement-interieur', '/fr/3-prevention-des-risques', '/fr/43-stockage-et-manutention', '/fr/25-amenagement-exterieur', '/fr/11-industrie', '/fr/28-amenagement-de-parking', '/fr/16-amenagements-industriels', '/en/connexion',
-                                    'Index.php', '/en/recherche', '/fr/133-voirie-et-parking', '/img/cms/Catalogue_Nouveautés_SIGN_2020-.pdf', '/fr/152-industrie',
-                                    '/fr/ODMtbWFsbG', ]
-    chosen_variable = 'Produits Vus'
-    pages_produits = st.toggle("Pages Produits (exclusion des pages structurelles du site)", value=True)
+                                    'Index.php', '/en/recherche', '/fr/133-voirie-et-parking', '/img/cms/Catalogue_Nouveautés_SIGN_2020-.pdf', '/fr/152-industrie', '/fr/ODMtbWFsbG', ]
+    pages_produits = st.toggle("Pages Produits (exclusion des pages de navigation)", value=True)
     if pages_produits:
         chosen_variable = 'Pages Produits Vus'
         pages_final = pages_final[(~pages_final['pagePath'].isin(pages_exclues))]
@@ -366,7 +377,6 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
         pages_final['output'] = pages_final['pagePath'].values.astype(str)
         
     top_results_label = min(top_results, len(pages_final))
-    st.subheader(f'\nTop {str(top_results_label)} {chosen_variable}', divider='gray')
     pages_final.reset_index(inplace=True)
     pages_final.index += 1
     
@@ -374,6 +384,7 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
     pages_final.drop(columns=['SessionsDuration','Sessions','screenPageViews'], inplace=True)
     if len(pages_final) > 0:
         st.dataframe(pages_final[0:top_results_label],column_order=["output", "activeUsers", "engagedSessions", "avgSessionDuration",'avgPageViews'], height=37*top_results_label,
+                    on_select="rerun",
                     column_config={
                 "output": st.column_config.TextColumn(chosen_variable),
                 "activeUsers": st.column_config.ProgressColumn("Visiteurs",format="localized",min_value=0,max_value=max(pages_final['activeUsers'][0:top_results_label])),
@@ -383,6 +394,8 @@ def main(df_final, pages_table, country_filter, channel_filter, date_filter, top
                 },)
 
 if __name__ == "__main__":
-    initialize_state()
-    df_final, pages_table, country_filter, channel_filter, date_filter, top_results = upload_data()
-    main(df_final, pages_table, country_filter, channel_filter, date_filter, top_results)
+    df_final, pages_table = upload_data()
+    
+    df_final, pages_table, top_results = filter_applications(df_final, pages_table)
+    
+    main(df_final, pages_table, top_results)
