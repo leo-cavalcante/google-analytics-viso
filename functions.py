@@ -277,9 +277,9 @@ def color_rate(value):
     return f"color: #B0B0B0"
 
 ## Export to Excel
-def export_to_excel(output_df):
+def export_to_excel(df_final):
     today_str = date.today().strftime('%Y-%m-%d at %H.%m')
-    output_df.reset_index().to_excel(f'exploration_extracts/{today_str}_GA4_df_final.xlsx', sheet_name = 'GA4_report', engine = 'xlsxwriter')
+    df_final.reset_index().to_excel(f'exploration_extracts/{today_str}_GA4_df_final.xlsx', sheet_name = 'GA4_df_final', engine = 'xlsxwriter')
 
 ## Export to CSV
 def export_to_csv(output_df):
