@@ -2,8 +2,9 @@
 import re
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
+from datetime import date
+import matplotlib.pyplot as plt
 from google.analytics.data_v1beta.types import Metric
 from google.analytics.data_v1beta.types import OrderBy
 from google.analytics.data_v1beta.types import DateRange
@@ -277,7 +278,8 @@ def color_rate(value):
 
 ## Export to Excel
 def export_to_excel(output_df):
-    output_df.reset_index().to_excel('GA4_python_output.xlsx', sheet_name = 'GA4_report', engine = 'xlsxwriter')
+    today_str = date.today().strftime('%Y-%m-%d at %H.%m')
+    output_df.reset_index().to_excel(f'exploration_extracts/{today_str}_GA4_df_final.xlsx', sheet_name = 'GA4_report', engine = 'xlsxwriter')
 
 ## Export to CSV
 def export_to_csv(output_df):
