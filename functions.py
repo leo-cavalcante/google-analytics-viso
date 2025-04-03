@@ -35,7 +35,6 @@ def request_ga_data(_client, property_id, start_date_input, end_date_input, even
                         OrderBy(dimension = {'dimension_name': 'firstUserDefaultChannelGroup',}),],
             date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],)
     output_df = format_report(_client, request)
-    output_df['country'] = output_df['country'].str.replace('(not set)', 'INCONNU')
         
     # output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup', 'pagePath'], suffixes=('','_event'))
     output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup'], suffixes=('','_event'))
@@ -114,7 +113,10 @@ def build_df_final(output_df):
     # Rectifying data type
     df_final['yearMonth'] = pd.to_datetime(df_final['yearMonth'], format='%Y%m')
     df_final['yearMonth'] = df_final['yearMonth'].dt.strftime('%Y-%m %b')
-    df_final['newUsers'] = df_final['newUsers'].values.astype('int')
+    try:
+        df_final['newUsers'] = df_final['newUsers'].values.astype('int')
+    except:
+        pass
     df_final['activeUsers'] = df_final['activeUsers'].values.astype('int')
     df_final['Sessions'] = df_final['Sessions'].astype('int') 
     df_final['engagedSessions'] = df_final['engagedSessions'].values.astype('int')
@@ -125,10 +127,15 @@ def build_df_final(output_df):
     for index, row in output_df.iterrows():
         if  row['Sessions'] == 0:
             row['activeUsers'] = 0
-            row['newUsers'] = 0
             row['engagedSessions'] = 0
             row['screenPageViews'] = 0
             row['averageSessionDuration'] = 0
+            try:
+                row['newUsers'] = 0
+            except:
+                continue
+        if row['country'].lower()=='(not set)':
+            row['country'] = 'INCONNU'
             
     # df_final.drop(columns={'year', 'month'})
     df_final.sort_values('yearMonth', ascending=False, inplace=True)
@@ -236,12 +243,13 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
     
     # Produce Top pages output tables
     table_requested = format_report(client, pages_request)
-    table_requested['country'] = table_requested['country'].str.replace('(not set)', 'INCONNU')
-    table_requested['yearMonth'] = pd.to_datetime(table_requested['yearMonth'], format='%Y%m')
-    table_requested['yearMonth'] = table_requested['yearMonth'].dt.strftime('%Y-%m %b')
-    table_requested['activeUsers'] = table_requested['activeUsers'].astype('int') 
-    table_requested['Sessions'] = table_requested['Sessions'].astype('int') 
-    table_requested['engagedSessions'] = table_requested['engagedSessions'].astype('int')
+    table_requested = build_df_final(table_requested)
+    # table_requested['country'] = table_requested['country'].str.replace('(not set)', 'INCONNU')
+    # table_requested['yearMonth'] = pd.to_datetime(table_requested['yearMonth'], format='%Y%m')
+    # table_requested['yearMonth'] = table_requested['yearMonth'].dt.strftime('%Y-%m %b')
+    # table_requested['activeUsers'] = table_requested['activeUsers'].astype('int') 
+    # table_requested['Sessions'] = table_requested['Sessions'].astype('int') 
+    # table_requested['engagedSessions'] = table_requested['engagedSessions'].astype('int')
     table_requested['averageSessionDuration'] = table_requested['averageSessionDuration'].apply(lambda x: round(x,0)).astype('float')
     table_requested['SessionsDuration'] = table_requested['Sessions'] * table_requested['averageSessionDuration'] # .apply(lambda x: round(x,0)).astype('float')
     table_requested.drop(columns=['averageSessionDuration'], inplace=True)
