@@ -57,9 +57,9 @@ def upload_data():
     comp_df = build_df_final(comp_df)
     
     df_final = pd.merge(output_df, comp_df, how='outer', on=['yearMonth','country','firstUserDefaultChannelGroup'], suffixes=('','_LY'))
-    pages_table = traffic_report(end_date_input, start_date_input, property_id, client)
+    pages_df = traffic_report(end_date_input, start_date_input, property_id, client)
     
-    return df_final, pages_table
+    return df_final, pages_df
     
 # FILTERS SIDEBAR -- PART 2
 def filter_applications(df_final, pages_final):
@@ -104,19 +104,21 @@ def filter_applications(df_final, pages_final):
 
 # APPLYING FILTERS TO DATAFRAME
 @st.cache_data
-def build_all(df_final):
+def build_visuals_dfs(df_final):
     yearMonth_agg = build_yearMonth(df_final)
     yearMonth_pivot = rename_cols_df(yearMonth_agg)
     funnel_df = build_funnel(df_final)
     channel_unpivot = build_channel(df_final)
 
-    return df_final, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot #, landing_table, pages_table, countries_table
+    return funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot #, landing_table, pages_df, countries_table
 
 # MAIN APP
-def main(df_final, pages_table, top_results): 
-    # GLOBAL VARIABLES
+def main(df_final, pages_final, top_results): 
+    # st.write(px.colors.diverging.swatches())
+    # st.write(px.colors.DEFAULT_PLOTLY_COLORS)
     # Plotly_Standard_Colors = ["rgb(31, 119, 180)","rgb(255, 127, 14)","rgb(44, 160, 44)","rgb(214, 39, 40)","rgb(148, 103, 189)","rgb(140, 86, 75)","rgb(227, 119, 194)","rgb(127, 127, 127)","rgb(188, 189, 34)","rgb(23, 190, 207)"]
     
+    # GLOBAL VARIABLES
     color_discrete_map_type={"Visiteurs" : "rgba(0,0,255,100)", "Sessions" : "rgba(215,48,39,100)", "Prospects" : "#2aa198"}
 
     color_discrete_map_channels={ "1-Unassigned"        : "rgba(165,0,38,100)",   "2-Paid Search"    : "rgba(215,48,39,100)",
@@ -127,8 +129,6 @@ def main(df_final, pages_table, top_results):
                                   "Organic Social"      : "rgba(128,205,193,100)",   "Referral"      : "rgba(244,109,67,100)",
                                   "7-Direct"            : "rgba(0,0,255,100)",   "8-Organic Search"  : "rgba(53,151,143,100)",
                                   "Direct"              : "rgba(0,0,255,100)",   "Organic Search"    : "rgba(53,151,143,100)"}
-    # st.write(px.colors.diverging.swatches())
-    # st.write(px.colors.DEFAULT_PLOTLY_COLORS)
 
     yearmonth_order=['2026-12 Dec', '2026-11 Nov', '2026-10 Oct', '2026-09 Sep', '2026-08 Aug', '2026-07 Jul', '2026-06 Jun', '2026-05 May', '2026-04 Apr', '2026-03 Mar', '2026-02 Feb', '2026-01 Jan', 
                      '2025-12 Dec', '2025-11 Nov', '2025-10 Oct', '2025-09 Sep', '2025-08 Aug', '2025-07 Jul', '2025-06 Jun', '2025-05 May', '2025-04 Apr', '2025-03 Mar', '2025-02 Feb', '2025-01 Jan', 
@@ -139,8 +139,6 @@ def main(df_final, pages_table, top_results):
                      '2020-12 Dec', '2020-11 Nov', '2020-10 Oct', '2020-09 Sep', '2020-08 Aug', '2020-07 Jul', '2020-06 Jun', '2020-05 May', '2020-04 Apr', '2020-03 Mar', '2020-02 Feb', '2020-01 Jan']
 
     category_order_channels=["1-Unassigned","2-Paid Search","3-Organic Shopping","4-Organic Social","5-Email","6-Referral","7-Direct","8-Organic Search"]
-
-    df_final, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot = build_all(df_final)
     
     # GRAPH 1 -- FUNNEL MARKETING
     st.subheader( 'Funnel Marketing Digital', divider='gray')
@@ -276,9 +274,9 @@ def main(df_final, pages_table, top_results):
     # fig_line_channel.update_traces(textposition='top center', textfont=dict(size=14,color='#000000'))#,weight="bold"))   #,color='#9C3587'
     # st.plotly_chart(fig_line_channel, use_container_width=True, theme="streamlit", on_select="rerun")
     
-    test = channel_unpivot_agg.pivot_table(columns='yearMonth', values='Visiteurs', aggfunc='sum') #.sum(axis=0).reset_index()
+    channel_unpivot_agg_df = channel_unpivot_agg.pivot_table(columns='yearMonth', values='Visiteurs', aggfunc='sum') #.sum(axis=0).reset_index()
 
-    st.dataframe(test, column_order=yearmonth_order, hide_index=True,
+    st.dataframe(channel_unpivot_agg_df, column_order=yearmonth_order, hide_index=True,
                  column_config = {'2025-12 Dec': {'alignment': 'center'}, '2024-12 Dec': {'alignment': 'center'}, '2023-12 Dec': {'alignment': 'center'}, '2022-12 Dec': {'alignment': 'center'}, '2021-12 Dec': {'alignment': 'center'}, '2020-12 Dec': {'alignment': 'center'},
                                   '2025-11 Nov': {'alignment': 'center'}, '2024-11 Nov': {'alignment': 'center'}, '2023-11 Nov': {'alignment': 'center'}, '2022-11 Nov': {'alignment': 'center'}, '2021-11 Nov': {'alignment': 'center'}, '2020-11 Nov': {'alignment': 'center'},
                                   '2025-10 Oct': {'alignment': 'center'}, '2024-10 Oct': {'alignment': 'center'}, '2023-10 Oct': {'alignment': 'center'}, '2022-10 Oct': {'alignment': 'center'}, '2021-10 Oct': {'alignment': 'center'}, '2020-10 Oct': {'alignment': 'center'},
@@ -310,7 +308,6 @@ def main(df_final, pages_table, top_results):
         # channel_filter = list(set([x["legendgroup"] for x in selected_stacked_column['selection']['points']]))
         st.session_state["channel_filter"] = list(set([x["legendgroup"] for x in selected_yearMonth_channel_area['selection']['points']]))
         # st.write(st.session_state["channel_filter"])
-    
 
     fig_stacked = px.histogram(channel_unpivot, x="yearMonth", y="Nombre", barmode='stack', orientation='v', barnorm='fraction', text_auto='.2%',  opacity=0.33,#, text_auto='.0%',        # log_x=True,    #, nbins=len(channel_unpivot['yearMonth'].unique())
                             log_y=activate_log, color='Channel', color_discrete_map=color_discrete_map_channels,
@@ -361,7 +358,7 @@ def main(df_final, pages_table, top_results):
     ## TABLE 4
     chosen_variable = 'Produits Vus'
     st.subheader(f'\nTop {str(top_results)} {chosen_variable}', divider='gray')
-    pages_final = pages_table_transformation(pages_table)
+    pages_final = pages_df_transformation(pages_df)
     pages_exclues = list(set([x for x in pages_final['pagePath'] if 'produit' in x or 'products' in x or '/content/' in x or 'catalog' in x or 'contact' in x or 'connexion' in x or '/private/' in x]))
     pages_exclues = pages_exclues + ['/fr/', '/en/', '/nl/', '/fr/recherche', '/fr/6-equipement-interieur', '/fr/3-prevention-des-risques', '/fr/43-stockage-et-manutention', '/fr/25-amenagement-exterieur', '/fr/11-industrie', '/fr/28-amenagement-de-parking', '/fr/16-amenagements-industriels', '/en/connexion',
                                     'Index.php', '/en/recherche', '/fr/133-voirie-et-parking', '/img/cms/Catalogue_Nouveautés_SIGN_2020-.pdf', '/fr/152-industrie', '/fr/ODMtbWFsbG', ]
@@ -394,6 +391,10 @@ def main(df_final, pages_table, top_results):
                 },)
 
 if __name__ == "__main__":
-    df_final, pages_table = upload_data()
-    df_final, pages_final, top_results = filter_applications(df_final, pages_table)
+    output_df, pages_df = upload_data()
+    
+    df_final, pages_final, top_results = filter_applications(output_df, pages_df)
+    
+    funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot = build_visuals_dfs(df_final)
+    
     main(df_final, pages_final, top_results)
