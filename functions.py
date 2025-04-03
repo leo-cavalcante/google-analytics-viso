@@ -283,4 +283,5 @@ def export_to_excel(df_final):
 
 ## Export to CSV
 def export_to_csv(output_df):
-    output_df.to_csv('GA4_python_output.csv')
+    today_str = date.today().strftime('%Y-%m-%d at %H.%m')
+    output_df.to_csv(f'exploration_extracts/{today_str}_GA4_df_final.csv')
