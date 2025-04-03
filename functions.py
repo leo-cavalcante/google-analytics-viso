@@ -36,15 +36,6 @@ def request_ga_data(_client, property_id, start_date_input, end_date_input, even
             date_ranges=[DateRange(start_date=start_date_input.strftime("%Y-%m-%d"), end_date=end_date_input.strftime("%Y-%m-%d"))],)
     output_df = format_report(_client, request)
     output_df['country'] = output_df['country'].str.replace('(not set)', 'INCONNU')
-    
-    # Correcting Values
-    for x in output_df:
-        if x['Sessions'] == 0:
-            x['activeUsers'] = 0
-            x['newUsers'] = 0
-            x['engagedSessions'] = 0
-            x['screenPageViews'] = 0
-            x['averageSessionDuration'] = 0
         
     # output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup', 'pagePath'], suffixes=('','_event'))
     output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup'], suffixes=('','_event'))
@@ -125,9 +116,20 @@ def build_df_final(output_df):
     df_final['yearMonth'] = df_final['yearMonth'].dt.strftime('%Y-%m %b')
     df_final['newUsers'] = df_final['newUsers'].values.astype('int')
     df_final['activeUsers'] = df_final['activeUsers'].values.astype('int')
-    # df_final['activeUsers'] = df_final['activeUsers'].astype('int') 
+    df_final['Sessions'] = df_final['Sessions'].astype('int') 
     df_final['engagedSessions'] = df_final['engagedSessions'].values.astype('int')
-    
+    df_final['screenPageViews'] = df_final['screenPageViews'].astype('int') 
+    df_final['averageSessionDuration'] = df_final['averageSessionDuration'].astype('float') 
+        
+    # Correcting Values
+    for x in output_df:
+        if x['Sessions'] == 0:
+            x['activeUsers'] = 0
+            x['newUsers'] = 0
+            x['engagedSessions'] = 0
+            x['screenPageViews'] = 0
+            x['averageSessionDuration'] = 0
+            
     # df_final.drop(columns={'year', 'month'})
     df_final.sort_values('yearMonth', ascending=False, inplace=True)
 
