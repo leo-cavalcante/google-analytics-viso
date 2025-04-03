@@ -125,7 +125,7 @@ def build_visuals_dfs(df_final):
     return funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot #, landing_table, pages_df, countries_table
 
 # MAIN APP
-def main(df_final, pages_final, top_results): 
+def main(df_final, pages_final, top_results, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot):
     # st.write(px.colors.diverging.swatches())
     # st.write(px.colors.DEFAULT_PLOTLY_COLORS)
     # Plotly_Standard_Colors = ["rgb(31, 119, 180)","rgb(255, 127, 14)","rgb(44, 160, 44)","rgb(214, 39, 40)","rgb(148, 103, 189)","rgb(140, 86, 75)","rgb(227, 119, 194)","rgb(127, 127, 127)","rgb(188, 189, 34)","rgb(23, 190, 207)"]
@@ -409,4 +409,4 @@ if __name__ == "__main__":
     
     funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot = build_visuals_dfs(df_final)
     
-    main(df_final, pages_final, top_results)
+    main(df_final, pages_final, top_results, funnel_df, yearMonth_agg, yearMonth_pivot, channel_unpivot)
