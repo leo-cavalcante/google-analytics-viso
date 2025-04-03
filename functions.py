@@ -37,6 +37,15 @@ def request_ga_data(_client, property_id, start_date_input, end_date_input, even
     output_df = format_report(_client, request)
     output_df['country'] = output_df['country'].str.replace('(not set)', 'INCONNU')
     
+    # Correcting Values
+    for x in output_df:
+        if x['Sessions'] == 0:
+            x['activeUsers'] = 0
+            x['newUsers'] = 0
+            x['engagedSessions'] = 0
+            x['screenPageViews'] = 0
+            x['averageSessionDuration'] = 0
+        
     # output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup', 'pagePath'], suffixes=('','_event'))
     output_df = pd.merge(output_df, events_df, how='outer', on=['yearMonth', 'country', 'firstUserDefaultChannelGroup'], suffixes=('','_event'))
     output_df['returningUsers'] = output_df['activeUsers'] - output_df['newUsers']
@@ -108,12 +117,10 @@ def rename_cols_df(df):
     return df
 
 def build_df_final(output_df):
-    df_final = output_df.copy()
-    output_df=output_df.fillna(0)
-    
-    # Rectifying data type
+    # df_final = output_df.copy()
+    df_final = output_df.fillna(0)
 
-    # Creating new & deleting avg columns on dataframe
+    # Rectifying data type
     df_final['yearMonth'] = pd.to_datetime(df_final['yearMonth'], format='%Y%m')
     df_final['yearMonth'] = df_final['yearMonth'].dt.strftime('%Y-%m %b')
     df_final['newUsers'] = df_final['newUsers'].values.astype('int')
