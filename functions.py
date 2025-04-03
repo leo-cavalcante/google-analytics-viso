@@ -122,13 +122,13 @@ def build_df_final(output_df):
     df_final['averageSessionDuration'] = df_final['averageSessionDuration'].astype('float') 
         
     # Correcting Values
-    for x in output_df:
-        if x['Sessions'] == 0:
-            x['activeUsers'] = 0
-            x['newUsers'] = 0
-            x['engagedSessions'] = 0
-            x['screenPageViews'] = 0
-            x['averageSessionDuration'] = 0
+    for index, row in output_df.iterrows():
+        if  row['Sessions'] == 0:
+            row['activeUsers'] = 0
+            row['newUsers'] = 0
+            row['engagedSessions'] = 0
+            row['screenPageViews'] = 0
+            row['averageSessionDuration'] = 0
             
     # df_final.drop(columns={'year', 'month'})
     df_final.sort_values('yearMonth', ascending=False, inplace=True)
