@@ -2,9 +2,11 @@
 import re
 import numpy as np
 import pandas as pd
+from io import BytesIO
 import streamlit as st
 from datetime import date
 import matplotlib.pyplot as plt
+from pyxlsb import open_workbook as open_xlsb
 from google.analytics.data_v1beta.types import Metric
 from google.analytics.data_v1beta.types import OrderBy
 from google.analytics.data_v1beta.types import DateRange
@@ -243,7 +245,7 @@ def traffic_report(end_date_input, start_date_input, property_id, client):
                                           ).reset_index()
     return pages_table
 
-def pages_table_transformation(pages_table):
+def pages_transformation(pages_table):
     pages_final = pages_table.groupby('pagePath').agg(activeUsers=('activeUsers','sum'), Sessions=('Sessions','sum'),
                                                         engagedSessions=('engagedSessions','sum'), SessionsDuration=('SessionsDuration','sum'),
                                                         screenPageViews=('screenPageViews','sum'),
@@ -276,12 +278,24 @@ def color_font(value):
 def color_rate(value):
     return f"color: #B0B0B0"
 
+
 ## Export to Excel
 def export_to_excel(df_final):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df_final.to_excel(writer, index=False, sheet_name='Final')
+    workbook = writer.book
+    worksheet = writer.sheets['Final']
+    format1 = workbook.add_format({'num_format': '0.00'}) 
+    worksheet.set_column('A:A', None, format1)  
+    writer.save()
+    data_to_download = output.getvalue()
+    return data_to_download
+
+def export_to_excel_OLD(df_final):
     today_str = date.today().strftime('%Y-%m-%d at %H.%m')
-    df_final.reset_index().to_excel(f'exploration_extracts/{today_str}_GA4_df_final.xlsx', sheet_name = 'GA4_df_final', engine = 'xlsxwriter')
+    return df_final.to_excel(f'{today_str}_GA4_df_final.xlsx', sheet_name = 'GA4_df_final', engine = 'xlsxwriter').encode("utf-8")
 
 ## Export to CSV
 def export_to_csv(output_df):
-    today_str = date.today().strftime('%Y-%m-%d at %H.%m')
-    output_df.to_csv(f'exploration_extracts/{today_str}_GA4_df_final.csv')
+    return output_df.to_csv().encode("utf-8")
