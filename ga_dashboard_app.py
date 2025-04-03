@@ -52,11 +52,14 @@ def upload_data():
     ## TABLE OUTPUT
     output_df = request_data(client, property_id, start_date_input, end_date_input)
     output_df = build_df_final(output_df)
+    
     comp_df = request_data(client, property_id, start_date_comparison, end_date_comparison)
     comp_df['yearMonth'] = comp_df['yearMonth'].astype('int').apply(lambda x: x+100).astype('str')
     comp_df = build_df_final(comp_df)
     
     df_final = pd.merge(output_df, comp_df, how='outer', on=['yearMonth','country','firstUserDefaultChannelGroup'], suffixes=('','_LY'))
+    df_final.fillna(0, inplace=True)
+    
     pages_df = traffic_report(end_date_input, start_date_input, property_id, client)
     
     return df_final, pages_df
@@ -98,7 +101,16 @@ def filter_applications(df_final, pages_final):
         st.session_state.counter = 0
     
     st.sidebar.divider()
-    st.sidebar.button("Download Excel Output", on_click=export_to_excel(df_final))
+    today_str = date.today().strftime('%Y-%m-%d at %H.%m.%s - DF final')
+    df_final_to_download = export_to_excel(output_df)
+    st.sidebar.download_button(label="Master Data", data=df_final_to_download, mime="text/csv", icon=":material/download:",
+                               file_name=f'{today_str} - Master Data.xlsx')
+
+    pages_df_to_download = export_to_excel(output_df)
+    st.sidebar.download_button(label="Data Produits", data=pages_df_to_download, mime="text/csv", icon=":material/download:",
+                               file_name=f'{today_str} - Data Produits.xlsx')
+    # st.sidebar.button("Download Excel Output", on_click=export_to_excel(df_final))
+    # df_final.to_excel(f'exploration_extracts/{today_str}_GA4_final.xlsx', sheet_name = 'GA4_final', engine = 'xlsxwriter')
     
     return df_final, pages_final, top_results
 
@@ -358,7 +370,7 @@ def main(df_final, pages_final, top_results):
     ## TABLE 4
     chosen_variable = 'Produits Vus'
     st.subheader(f'\nTop {str(top_results)} {chosen_variable}', divider='gray')
-    pages_final = pages_df_transformation(pages_df)
+    pages_final = pages_transformation(pages_df)
     pages_exclues = list(set([x for x in pages_final['pagePath'] if 'produit' in x or 'products' in x or '/content/' in x or 'catalog' in x or 'contact' in x or 'connexion' in x or '/private/' in x]))
     pages_exclues = pages_exclues + ['/fr/', '/en/', '/nl/', '/fr/recherche', '/fr/6-equipement-interieur', '/fr/3-prevention-des-risques', '/fr/43-stockage-et-manutention', '/fr/25-amenagement-exterieur', '/fr/11-industrie', '/fr/28-amenagement-de-parking', '/fr/16-amenagements-industriels', '/en/connexion',
                                     'Index.php', '/en/recherche', '/fr/133-voirie-et-parking', '/img/cms/Catalogue_Nouveautés_SIGN_2020-.pdf', '/fr/152-industrie', '/fr/ODMtbWFsbG', ]
