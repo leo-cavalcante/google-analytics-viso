@@ -4,6 +4,7 @@ import dateutil
 import pandas as pd
 import streamlit as st
 from functions import *
+from datetime import datetime
 from datetime import date
 import plotly_express as px
 import matplotlib.pyplot as plt
@@ -100,17 +101,18 @@ def filter_applications(df_final, pages_final):
     if "counter" not in st.session_state:
         st.session_state.counter = 0
     
+    # FILTERS - DOWNLOAD BUTTONS
     st.sidebar.divider()
-    today_str = date.today().strftime('%Y-%m-%d at %H.%m.%s - DF final')
+    today_str = datetime.now().strftime('%Y-%m-%d at %H.%M.%S')
     df_final_to_download = export_to_excel(output_df)
+    # st.write(today_str)
+    
     st.sidebar.download_button(label="Master Data", data=df_final_to_download, mime="text/csv", icon=":material/download:",
                                file_name=f'{today_str} - Master Data.xlsx')
 
     pages_df_to_download = export_to_excel(output_df)
     st.sidebar.download_button(label="Data Produits", data=pages_df_to_download, mime="text/csv", icon=":material/download:",
                                file_name=f'{today_str} - Data Produits.xlsx')
-    # st.sidebar.button("Download Excel Output", on_click=export_to_excel(df_final))
-    # df_final.to_excel(f'exploration_extracts/{today_str}_GA4_final.xlsx', sheet_name = 'GA4_final', engine = 'xlsxwriter')
     
     return df_final, pages_final, top_results
 
