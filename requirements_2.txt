@@ -1,0 +1,10 @@
+dateutils
+docker
+gh
+git
+pillow
+pipx
+spark
+tree
+uvicorn
+virtualenv
